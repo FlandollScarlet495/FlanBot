@@ -16,15 +16,15 @@ from keep_alive import keep_alive, stop_server
 import pathlib
 
 # ===== 環境変数 =====
-load_dotenv()
-TOKEN = os.getenv("DISCORD_TOKEN")
-if TOKEN is None:
-	raise RuntimeError("DISCORD_TOKEN が .env に設定されていません")
-
-# ===== .env 読み込み =====
 env_path = pathlib.Path('.env')
 if env_path.exists():
 	load_dotenv(env_path)
+else:
+	load_dotenv()  # Renderなど、環境変数から直接読み込む
+
+TOKEN = os.getenv("DISCORD_TOKEN")
+if TOKEN is None:
+	raise RuntimeError("DISCORD_TOKEN が環境変数に設定されていません")
 
 # ===== Bot 初期化 =====
 intents = discord.Intents.default()
