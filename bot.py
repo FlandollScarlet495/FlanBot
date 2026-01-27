@@ -1,5 +1,4 @@
 # bot.py
-
 # リンク https://discord.com/oauth2/authorize?client_id=1463158428435222807&permissions=8&integration_type=0&scope=bot+applications.commands
 	
 import os
@@ -13,6 +12,14 @@ import discord
 from dotenv import load_dotenv
 from discord import app_commands
 from discord.ext import commands
+from hiragana import romaji_to_kana, register_word
+from datetime import datetime
+
+user_modes = {}
+
+# ユーザーごとの変換モード管理
+# デフォルトは "hiragana"
+user_modes = {}
 
 # ===== VC常駐用 =====
 VC_STATE_FILE = "vc_state.json"
@@ -45,7 +52,11 @@ MAX_DELETE = 50
 # ===== 起動処理 =====
 @bot.event
 async def on_ready():
-	print("ゆきのbotが起動しました")
+	print("ふらんちゃんが起動したよ💗")
+	await send_system_embed(
+		"✅ Bot Online",
+		"再起動が完了し、正常に起動しました"
+	)
 	bot.loop.create_task(reconnect_all_vc())
 
 @bot.event
@@ -100,6 +111,56 @@ def is_admin_or_dev(interaction: discord.Interaction) -> bool:
 	if interaction.user.id in DEVELOPER_IDS:
 		return True
 	return interaction.user.guild_permissions.administrator
+
+async def find_notify_targets():
+	await bot.wait_until_ready()
+	results = []
+
+	for guild in bot.guilds:
+		vc = guild.voice_client
+		text_ch = None
+		vc_name = None
+
+		if vc and vc.channel:
+			vc_name = vc.channel.name
+
+			if vc.channel.category:
+				for ch in vc.channel.category.text_channels:
+					if ch.permissions_for(guild.me).send_messages:
+						text_ch = ch
+						break
+
+		if text_ch is None and guild.system_channel:
+			if guild.system_channel.permissions_for(guild.me).send_messages:
+				text_ch = guild.system_channel
+
+		if text_ch:
+			results.append((guild, text_ch, vc_name))
+
+	return results
+
+async def send_system_embed(title: str, description: str):
+	targets = await find_notify_targets()
+	now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+	for guild, ch, vc_name in targets:
+		embed = discord.Embed(
+			title=title,
+			description=description,
+			color=discord.Color.orange()
+		)
+
+		embed.add_field(name="Guild", value=guild.name, inline=False)
+
+		if vc_name:
+			embed.add_field(name="VC", value=vc_name, inline=False)
+
+		embed.set_footer(text=f"{now}")
+
+		try:
+			await ch.send(embed=embed)
+		except Exception as e:
+			print(f"通知失敗 ({guild.name}): {e}")
 
 # =========================================================
 # /thinking
@@ -337,7 +398,7 @@ async def ping(interaction: discord.Interaction):
 @app_commands.check(is_admin_or_dev)
 async def restart(interaction: discord.Interaction):
 	await interaction.response.send_message(
-		"ボットを再起動します...", ephemeral=True
+		"ボットを再起動します..."
 	)
 	await bot.close()
 
@@ -353,9 +414,39 @@ async def restart(interaction: discord.Interaction):
 @app_commands.check(is_admin_or_dev)
 async def shutdown(interaction: discord.Interaction):
 	await interaction.response.send_message(
-		"ボットをシャットダウンします...", ephemeral=True
+		"ボットをシャットダウンします..."
 	)
 	await bot.close()
+
+# =========================================================
+# /mode
+# =========================================================
+
+@bot.tree.command(
+	name="mode",
+	description="ローマ字→かな変換モードを設定します"
+)
+@app_commands.describe(
+	mode="hiragana / katakana / nasi"
+)
+@app_commands.choices(
+	mode=[
+		app_commands.Choice(name="ひらがな", value="hiragana"),
+		app_commands.Choice(name="カタカナ", value="katakana"),
+		app_commands.Choice(name="変換なし", value="nasi"),
+	]
+)
+async def mode_cmd(
+	interaction: discord.Interaction,
+	mode: app_commands.Choice[str]
+):
+	user_modes[interaction.user.id] = mode.value
+
+	await interaction.response.send_message(
+		f"変換モードを **{mode.value}** に設定しました",
+		ephemeral=True
+	)
+
 # =========================================================
 # ================= コマンドライン入力処理 ==================
 # =========================================================
@@ -368,7 +459,13 @@ def input_handler():
 			
 			if cmd == "restart":
 				print("ボットを再起動します...")
-				asyncio.run_coroutine_threadsafe(bot.close(), bot.loop)
+				asyncio.run_coroutine_threadsafe(
+					send_system_embed(
+						"🔄 Bot Restart",
+						"コンソール操作により再起動します"
+					),
+					bot.loop
+				)
 				python_executable = sys.executable
 				script_path = os.path.abspath(__file__)
 				subprocess.Popen([python_executable, script_path])
@@ -376,7 +473,13 @@ def input_handler():
 
 			elif cmd == "shutdown" or cmd == "stop" or cmd == "exit":
 				print("ボットをシャットダウンします...")
-				asyncio.run_coroutine_threadsafe(bot.close(), bot.loop)
+				asyncio.run_coroutine_threadsafe(
+					send_system_embed(
+						"⛔ Bot Shutdown",
+						"コンソール操作によりシャットダウンします"
+					),
+					bot.loop
+				)
 				break
 
 			elif cmd == "help":
