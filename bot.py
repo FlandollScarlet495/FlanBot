@@ -12,7 +12,6 @@ import discord
 from dotenv import load_dotenv
 from discord import app_commands
 from discord.ext import commands
-from keep_alive import keep_alive, stop_server
 import pathlib
 
 # ===== 環境変数 =====
@@ -272,7 +271,4 @@ if __name__ == "__main__":
 	print("ボットを起動しました")
 	print("コマンド入力で制御できます (help でコマンド一覧表示)\n")
 
-	keep_alive()
 	bot.run(TOKEN)
-
-stop_server()
