@@ -6,24 +6,30 @@ import os
 import sys
 import random
 import subprocess
+import json
 import threading
 import asyncio
 import discord
 from dotenv import load_dotenv
 from discord import app_commands
 from discord.ext import commands
-import pathlib
+
+# ===== VC常駐用 =====
+VC_STATE_FILE = "vc_state.json"
+
+VC_RETRY_COUNT = 5       # 最大リトライ回数
+VC_RETRY_INTERVAL = 5    # 秒
 
 # ===== 環境変数 =====
-env_path = pathlib.Path('.env')
-if env_path.exists():
-	load_dotenv(env_path)
-else:
-	load_dotenv()  # Renderなど、環境変数から直接読み込む
-
+load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 if TOKEN is None:
-	raise RuntimeError("DISCORD_TOKEN が環境変数に設定されていません")
+	raise RuntimeError("DISCORD_TOKEN が .env に設定されていません")
+
+load_dotenv()
+DEVELOPER_IDS = { int(os.getenv("DEVELOPER_ID")) }
+if DEVELOPER_IDS is None:
+	raise RuntimeError("DEVELOPER_IDS が .env に設定されていません")
 
 # ===== Bot 初期化 =====
 intents = discord.Intents.default()
@@ -36,43 +42,64 @@ bot = commands.Bot(
 
 MAX_DELETE = 50
 
-# ===== コマンドライン入力処理 =====
-def input_handler():
-	"""コマンドライン入力を監視"""
-	while True:
-		try:
-			cmd = input().strip().lower()
-			
-			if cmd == "restart":
-				print("ボットを再起動します...")
-				asyncio.run_coroutine_threadsafe(bot.close(), bot.loop)
-				python_executable = sys.executable
-				script_path = os.path.abspath(__file__)
-				subprocess.Popen([python_executable, script_path])
-				break
-
-			elif cmd == "shutdown" or cmd == "stop" or cmd == "exit":
-				print("ボットをシャットダウンします...")
-				asyncio.run_coroutine_threadsafe(bot.close(), bot.loop)
-				break
-
-			elif cmd == "help":
-				print("\n=== コマンド一覧 ===")
-				print("restart                  - ボットを再起動")
-				print("shutdown or exit or stop - ボットをシャットダウン")
-				print("help                     - このヘルプを表示\n")
-
-		except Exception as e:
-			print(f"エラー: {e}")
-
 # ===== 起動処理 =====
 @bot.event
 async def on_ready():
 	print("ゆきのbotが起動しました")
+	bot.loop.create_task(reconnect_all_vc())
 
 @bot.event
 async def setup_hook():
 	await bot.tree.sync()
+
+def load_vc_state():
+	if not os.path.exists(VC_STATE_FILE):
+		return {}
+	with open(VC_STATE_FILE, "r", encoding="utf-8") as f:
+		return json.load(f)
+
+def save_vc_state(state: dict):
+	with open(VC_STATE_FILE, "w", encoding="utf-8") as f:
+		json.dump(state, f, indent=2)
+
+async def reconnect_all_vc():
+	await bot.wait_until_ready()
+
+	state = load_vc_state()
+	if not state:
+		print("VC復帰情報なし")
+		return
+
+	for guild_id, channel_id in state.items():
+		guild = bot.get_guild(int(guild_id))
+		if not guild:
+			continue
+
+		channel = guild.get_channel(int(channel_id))
+		if not isinstance(channel, discord.VoiceChannel):
+			continue
+
+		for attempt in range(1, VC_RETRY_COUNT + 1):
+			try:
+				if guild.voice_client and guild.voice_client.is_connected():
+					break
+
+				await channel.connect(self_deaf=False, self_mute=False)
+				print(f"[VC復帰] {guild.name} / {channel.name}")
+				break
+
+			except Exception as e:
+				print(
+					f"[VC復帰失敗] {guild.name} / {channel.name} "
+					f"({attempt}/{VC_RETRY_COUNT}) : {e}"
+				)
+				if attempt < VC_RETRY_COUNT:
+					await asyncio.sleep(VC_RETRY_INTERVAL)
+
+def is_admin_or_dev(interaction: discord.Interaction) -> bool:
+	if interaction.user.id in DEVELOPER_IDS:
+		return True
+	return interaction.user.guild_permissions.administrator
 
 # =========================================================
 # /thinking
@@ -80,15 +107,15 @@ async def setup_hook():
 
 @bot.tree.context_menu(name="🤔 Thinking")
 async def thinking_context(interaction: discord.Interaction, message: discord.Message):
-		await interaction.response.defer(ephemeral=True)
+	await interaction.response.defer(ephemeral=True)
 		
-		try:
-				await message.add_reaction("🤔")
-				await interaction.followup.send("リアクションを追加しました！", ephemeral=True)
-		except discord.Forbidden:
-				await interaction.followup.send("リアクションを追加する権限がありません", ephemeral=True)
-		except Exception as e:
-				await interaction.followup.send(f"エラーが発生しました: {e}", ephemeral=True)
+	try:
+		await message.add_reaction("🤔")
+		await interaction.followup.send("リアクションを追加しました！", ephemeral=True)
+	except discord.Forbidden:
+		await interaction.followup.send("リアクションを追加する権限がありません", ephemeral=True)
+	except Exception as e:
+		await interaction.followup.send(f"エラーが発生しました: {e}", ephemeral=True)
 
 # =========================================================
 # /sonanoka
@@ -153,6 +180,68 @@ async def admin_del(interaction: discord.Interaction, limit: int = 5):
 	await interaction.response.defer(ephemeral=True)
 
 # =========================================================
+# /join
+# =========================================================
+
+@bot.tree.command(name="join", description="自分が入っているVCにBotを参加させます")
+async def join_vc(interaction: discord.Interaction):
+	if not interaction.user.voice or not interaction.user.voice.channel:
+		await interaction.response.send_message(
+			"先に音声チャンネルに参加してください。",
+			ephemeral=True
+		)
+		return
+
+	channel = interaction.user.voice.channel
+	guild = interaction.guild
+	vc = guild.voice_client
+
+	if vc and vc.is_connected():
+		if vc.channel.id == channel.id:
+			await interaction.response.send_message(
+				"すでにそのVCに参加しています。",
+				ephemeral=True
+			)
+			return
+		await vc.move_to(channel)
+	else:
+		await channel.connect(self_deaf=False, self_mute=False)
+
+	state = load_vc_state()
+	state[str(guild.id)] = channel.id
+	save_vc_state(state)
+
+	await interaction.response.send_message(
+		f"{channel.name} に参加しました。",
+		ephemeral=True
+	)
+
+# =========================================================
+# /leave
+# =========================================================
+
+@bot.tree.command(name="leave", description="BotをVCから退出させます")
+async def leave_vc(interaction: discord.Interaction):
+	vc = interaction.guild.voice_client
+	if not vc or not vc.is_connected():
+		await interaction.response.send_message(
+			"BotはVCに参加していません。",
+			ephemeral=True
+		)
+		return
+
+	await vc.disconnect()
+
+	state = load_vc_state()
+	state.pop(str(interaction.guild.id), None)
+	save_vc_state(state)
+
+	await interaction.response.send_message(
+		"VCから退出しました。",
+		ephemeral=True
+	)
+
+# =========================================================
 # /help
 # =========================================================
 
@@ -172,6 +261,8 @@ async def help_cmd(interaction: discord.Interaction):
 	embed.add_field(name="/ping", value="動作確認", inline=False)
 	embed.add_field(name="/restart", value="ボット再起動（管理者のみ）", inline=False)
 	embed.add_field(name="/shutdown", value="ボットシャットダウン（管理者のみ）", inline=False)
+	embed.add_field(name="/join", value="入っているVCにBotを参加させる", inline=False)
+	embed.add_field(name="/leave", value="BotをVCから退出させる", inline=False)
 
 	await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -243,11 +334,13 @@ async def ping(interaction: discord.Interaction):
 # =========================================================
 
 @bot.tree.command(name="restart", description="ボットを再起動")
-@app_commands.checks.has_permissions(administrator=True)
+@app_commands.check(is_admin_or_dev)
 async def restart(interaction: discord.Interaction):
-	await interaction.response.send_message("ボットを再起動します...", ephemeral=True)
+	await interaction.response.send_message(
+		"ボットを再起動します...", ephemeral=True
+	)
 	await bot.close()
-	# 新しいプロセスでボットを再起動
+
 	python_executable = sys.executable
 	script_path = os.path.abspath(__file__)
 	subprocess.Popen([python_executable, script_path])
@@ -257,12 +350,56 @@ async def restart(interaction: discord.Interaction):
 # =========================================================
 
 @bot.tree.command(name="shutdown", description="ボットをシャットダウン")
-@app_commands.checks.has_permissions(administrator=True)
+@app_commands.check(is_admin_or_dev)
 async def shutdown(interaction: discord.Interaction):
-	await interaction.response.send_message("ボットをシャットダウンします...", ephemeral=True)
+	await interaction.response.send_message(
+		"ボットをシャットダウンします...", ephemeral=True
+	)
 	await bot.close()
+# =========================================================
+# ================= コマンドライン入力処理 ==================
+# =========================================================
 
+def input_handler():
+	"""コマンドライン入力を監視"""
+	while True:
+		try:
+			cmd = input().strip().lower()
+			
+			if cmd == "restart":
+				print("ボットを再起動します...")
+				asyncio.run_coroutine_threadsafe(bot.close(), bot.loop)
+				python_executable = sys.executable
+				script_path = os.path.abspath(__file__)
+				subprocess.Popen([python_executable, script_path])
+				break
+
+			elif cmd == "shutdown" or cmd == "stop" or cmd == "exit":
+				print("ボットをシャットダウンします...")
+				asyncio.run_coroutine_threadsafe(bot.close(), bot.loop)
+				break
+
+			elif cmd == "help":
+				print("\n=== コマンド一覧 ===")
+				print("restart                  - ボットを再起動")
+				print("shutdown or exit or stop - ボットをシャットダウン")
+				print("help                     - このヘルプを表示\n")
+
+		except Exception as e:
+			print(f"エラー: {e}")
+
+@restart.error
+@shutdown.error
+async def admin_or_dev_error(interaction: discord.Interaction, error):
+	if isinstance(error, app_commands.CheckFailure):
+		await interaction.response.send_message(
+			"このコマンドは管理者または開発者のみ実行できます。",
+			ephemeral=True
+		)
+
+# ================
 # ===== 起動 =====
+# ================
 if __name__ == "__main__":
 	# コマンドライン入力処理を別スレッドで実行
 	input_thread = threading.Thread(target=input_handler, daemon=True)
