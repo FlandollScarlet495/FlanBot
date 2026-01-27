@@ -20,11 +20,11 @@ load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 if TOKEN is None:
 	raise RuntimeError("DISCORD_TOKEN が .env に設定されていません")
-else:
-	# ===== .env 読み込み =====
-	env_path = pathlib.Path('.env')
-	if env_path.exists():
-		load_dotenv(env_path)
+
+# ===== .env 読み込み =====
+env_path = pathlib.Path('.env')
+if env_path.exists():
+	load_dotenv(env_path)
 
 # ===== Bot 初期化 =====
 intents = discord.Intents.default()
