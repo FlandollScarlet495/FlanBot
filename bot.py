@@ -1,6 +1,7 @@
 # bot.py
 # リンク https://discord.com/oauth2/authorize?client_id=1463158428435222807&permissions=8&integration_type=0&scope=bot+applications.commands
-	
+# update
+
 import os
 import sys
 import random
