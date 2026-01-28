@@ -1,7 +1,6 @@
 # bot.py
 # リンク https://discord.com/oauth2/authorize?client_id=1463158428435222807&permissions=8&integration_type=0&scope=bot+applications.commands
-# update
-
+	
 import os
 import sys
 import random
@@ -15,6 +14,9 @@ from discord import app_commands
 from discord.ext import commands
 from hiragana import romaji_to_kana, register_word
 from datetime import datetime
+
+# 再起通知のギルドごとの設定
+NOTIFY_CONFIG_FILE = "notify_config.json"
 
 # ユーザーごとの変換モード管理
 # デフォルトは "hiragana"
@@ -56,26 +58,28 @@ MAX_DELETE = 50
 # ===== 起動処理 =====
 @bot.event
 async def on_ready():
-	print("ふらんちゃんが起動したよ💗")
-	await send_system_embed(
-		"✅ Bot Online",
-		"再起動が完了し、正常に起動しました"
-	)
-	bot.loop.create_task(restore_voice_connections())
+		print("ふらんちゃんが起動したよ💗")
+
+		await send_system_embed(
+				"✅ Bot Online",
+				"再起動が完了し、正常に起動しました"
+		)
+
+		bot.loop.create_task(restore_voice_connections())
 
 @bot.event
 async def setup_hook():
 	await bot.tree.sync()
 
 def load_vc_state():
-    if not os.path.exists(VC_STATE_FILE):
-        return {}
-    try:
-        with open(VC_STATE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"vc_state 読み込み失敗: {e}")
-        return {}
+		if not os.path.exists(VC_STATE_FILE):
+				return {}
+		try:
+				with open(VC_STATE_FILE, "r", encoding="utf-8") as f:
+						return json.load(f)
+		except Exception as e:
+				print(f"vc_state 読み込み失敗: {e}")
+				return {}
 
 def save_vc_state(state: dict):
 	with open(VC_STATE_FILE, "w", encoding="utf-8") as f:
@@ -141,7 +145,13 @@ async def send_system_embed(title: str, description: str):
 	targets = await find_notify_targets()
 	now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+	config = load_notify_config()
+
 	for guild, ch, vc_name in targets:
+		# このギルドが通知ONじゃないならこんてぃにゅー
+		if not config.get(str(guild.id), True):
+			continue
+
 		embed = discord.Embed(
 			title=title,
 			description=description,
@@ -153,7 +163,7 @@ async def send_system_embed(title: str, description: str):
 		if vc_name:
 			embed.add_field(name="VC", value=vc_name, inline=False)
 
-		embed.set_footer(text=f"{now}")
+		embed.set_footer(text=now)
 
 		try:
 			await ch.send(embed=embed)
@@ -451,6 +461,18 @@ async def ping(interaction: discord.Interaction):
 # =========================================================
 # /restart
 # =========================================================
+# 設定ファイル読み込み
+
+def load_notify_config():
+	if not os.path.exists(NOTIFY_CONFIG_FILE):
+		return {}
+	with open(NOTIFY_CONFIG_FILE, "r", encoding="utf-8") as f:
+		return json.load(f)
+
+def save_notify_config(config: dict):
+	with open(NOTIFY_CONFIG_FILE, "w", encoding="utf-8") as f:
+		json.dump(config, f, indent=2)
+
 
 @bot.tree.command(name="restart", description="ボットを再起動")
 @app_commands.check(is_admin_or_dev)
@@ -522,6 +544,36 @@ async def on_message(message: discord.Message):
 		print(f"変換エラー: {e}")
 
 	await bot.process_commands(message)
+
+# 通知設定
+@bot.tree.command(name="notify", description="起動・再起動通知のON/OFFを切り替えます")
+@app_commands.describe(mode="on または off")
+@app_commands.choices(
+		mode=[
+				app_commands.Choice(name="ON", value="on"),
+				app_commands.Choice(name="OFF", value="off"),
+		]
+)
+@app_commands.check(is_admin_or_dev)
+async def notify_cmd(
+		interaction: discord.Interaction,
+		mode: app_commands.Choice[str]
+):
+		config = load_notify_config()
+
+		if mode.value == "on":
+				config[str(interaction.guild.id)] = True
+				msg = "🔔 このサーバーの通知を **ON** にしました"
+		else:
+				config[str(interaction.guild.id)] = False
+				msg = "🔕 このサーバーの通知を **OFF** にしました"
+
+		save_notify_config(config)
+
+		await interaction.response.send_message(msg, ephemeral=True)
+
+
+
 
 # =========================================================
 # ================= コマンドライン入力処理 ==================
