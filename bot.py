@@ -15,8 +15,6 @@ from discord.ext import commands
 from hiragana import romaji_to_kana, register_word
 from datetime import datetime
 
-user_modes = {}
-
 # ユーザーごとの変換モード管理
 # デフォルトは "hiragana"
 user_modes = {}
@@ -34,12 +32,17 @@ if TOKEN is None:
 	raise RuntimeError("DISCORD_TOKEN が .env に設定されていません")
 
 load_dotenv()
-DEVELOPER_IDS = { int(os.getenv("DEVELOPER_ID")) }
-if DEVELOPER_IDS is None:
-	raise RuntimeError("DEVELOPER_IDS が .env に設定されていません")
+_dev = os.getenv("DEVELOPER_ID")
+if not _dev:
+	raise RuntimeError("DEVELOPER_ID が .env に設定されていません")
+
+DEVELOPER_IDS = { int(_dev) }
 
 # ===== Bot 初期化 =====
 intents = discord.Intents.default()
+intents.message_content = True
+intents.voice_states = True
+intents.guilds = True
 
 bot = commands.Bot(
 	command_prefix="!",
@@ -57,55 +60,49 @@ async def on_ready():
 		"✅ Bot Online",
 		"再起動が完了し、正常に起動しました"
 	)
-	bot.loop.create_task(reconnect_all_vc())
+	bot.loop.create_task(restore_voice_connections())
 
 @bot.event
 async def setup_hook():
 	await bot.tree.sync()
 
 def load_vc_state():
-	if not os.path.exists(VC_STATE_FILE):
-		return {}
-	with open(VC_STATE_FILE, "r", encoding="utf-8") as f:
-		return json.load(f)
+    if not os.path.exists(VC_STATE_FILE):
+        return {}
+    try:
+        with open(VC_STATE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"vc_state 読み込み失敗: {e}")
+        return {}
 
 def save_vc_state(state: dict):
 	with open(VC_STATE_FILE, "w", encoding="utf-8") as f:
 		json.dump(state, f, indent=2)
 
-async def reconnect_all_vc():
+async def restore_voice_connections():
 	await bot.wait_until_ready()
 
 	state = load_vc_state()
-	if not state:
-		print("VC復帰情報なし")
-		return
 
-	for guild_id, channel_id in state.items():
-		guild = bot.get_guild(int(guild_id))
-		if not guild:
-			continue
+	for guild_id, info in state.items():
+		try:
+			guild = bot.get_guild(int(guild_id))
+			if not guild:
+				continue
 
-		channel = guild.get_channel(int(channel_id))
-		if not isinstance(channel, discord.VoiceChannel):
-			continue
+			channel = guild.get_channel(info["channel_id"])
+			if not channel:
+				continue
 
-		for attempt in range(1, VC_RETRY_COUNT + 1):
-			try:
-				if guild.voice_client and guild.voice_client.is_connected():
-					break
+			if guild.voice_client and guild.voice_client.is_connected():
+				continue
 
-				await channel.connect(self_deaf=False, self_mute=False)
-				print(f"[VC復帰] {guild.name} / {channel.name}")
-				break
+			await channel.connect(timeout=10, reconnect=True)
+			print(f"VC自動復帰: {guild.name} / {channel.name}")
 
-			except Exception as e:
-				print(
-					f"[VC復帰失敗] {guild.name} / {channel.name} "
-					f"({attempt}/{VC_RETRY_COUNT}) : {e}"
-				)
-				if attempt < VC_RETRY_COUNT:
-					await asyncio.sleep(VC_RETRY_INTERVAL)
+		except Exception as e:
+			print(f"VC自動復帰失敗 ({guild_id}): {e}")
 
 def is_admin_or_dev(interaction: discord.Interaction) -> bool:
 	if interaction.user.id in DEVELOPER_IDS:
@@ -161,6 +158,53 @@ async def send_system_embed(title: str, description: str):
 			await ch.send(embed=embed)
 		except Exception as e:
 			print(f"通知失敗 ({guild.name}): {e}")
+
+async def ensure_voice_connection(guild_id: int, channel_id: int):
+	await bot.wait_until_ready()
+
+	for attempt in range(1, VC_RETRY_COUNT + 1):
+		try:
+			guild = bot.get_guild(guild_id)
+			if not guild:
+				return
+
+			channel = guild.get_channel(channel_id)
+			if not isinstance(channel, discord.VoiceChannel):
+				return
+
+			vc = guild.voice_client
+			if vc and vc.is_connected():
+				return
+
+			await channel.connect(timeout=10, reconnect=True)
+			print(f"[VC再接続成功] {guild.name} / {channel.name}")
+			return
+
+		except Exception as e:
+			print(f"[VC再接続失敗] ({attempt}/{VC_RETRY_COUNT}) {e}")
+			await asyncio.sleep(VC_RETRY_INTERVAL)
+			await send_system_embed(
+					"⚠ VC再接続失敗",
+					f"{guild.name} / {channel.name}"
+			)
+
+@bot.event
+async def on_voice_state_update(member, before, after):
+	if member.id != bot.user.id:
+		return
+
+	if before.channel and not after.channel:
+		print("VC切断検知。state から再接続します")
+
+		state = load_vc_state()
+		info = state.get(str(before.channel.guild.id))
+		if not info:
+			return
+
+		await ensure_voice_connection(
+			before.channel.guild.id,
+			info["channel_id"]
+		)
 
 # =========================================================
 # /thinking
@@ -246,36 +290,40 @@ async def admin_del(interaction: discord.Interaction, limit: int = 5):
 
 @bot.tree.command(name="join", description="自分が入っているVCにBotを参加させます")
 async def join_vc(interaction: discord.Interaction):
+	await interaction.response.defer(ephemeral=True)
+
 	if not interaction.user.voice or not interaction.user.voice.channel:
-		await interaction.response.send_message(
-			"先に音声チャンネルに参加してください。",
+		await interaction.followup.send(
+			"先にボイスチャンネルに参加してください",
 			ephemeral=True
 		)
 		return
 
 	channel = interaction.user.voice.channel
 	guild = interaction.guild
-	vc = guild.voice_client
 
-	if vc and vc.is_connected():
-		if vc.channel.id == channel.id:
-			await interaction.response.send_message(
-				"すでにそのVCに参加しています。",
-				ephemeral=True
-			)
-			return
-		await vc.move_to(channel)
-	else:
-		await channel.connect(self_deaf=False, self_mute=False)
+	try:
+		if guild.voice_client:
+			await guild.voice_client.move_to(channel)
+		else:
+			await channel.connect(timeout=10, reconnect=True)
+
+		await interaction.followup.send(
+			f"VC **{channel.name}** に参加しました",
+			ephemeral=True
+		)
+
+	except Exception as e:
+		await interaction.followup.send(
+			f"VC参加に失敗しました: {e}",
+			ephemeral=True
+		)
 
 	state = load_vc_state()
-	state[str(guild.id)] = channel.id
+	state[str(guild.id)] = {
+		"channel_id": channel.id
+	}
 	save_vc_state(state)
-
-	await interaction.response.send_message(
-		f"{channel.name} に参加しました。",
-		ephemeral=True
-	)
 
 # =========================================================
 # /leave
@@ -283,21 +331,30 @@ async def join_vc(interaction: discord.Interaction):
 
 @bot.tree.command(name="leave", description="BotをVCから退出させます")
 async def leave_vc(interaction: discord.Interaction):
+	await interaction.response.defer(ephemeral=True)
+
 	vc = interaction.guild.voice_client
 	if not vc or not vc.is_connected():
-		await interaction.response.send_message(
+		await interaction.followup.send(
 			"BotはVCに参加していません。",
 			ephemeral=True
 		)
 		return
 
-	await vc.disconnect()
+	try:
+		await vc.disconnect()
+	except Exception as e:
+		await interaction.followup.send(
+			f"VC切断中にエラーが発生しました: {e}",
+			ephemeral=True
+		)
+		return
 
 	state = load_vc_state()
 	state.pop(str(interaction.guild.id), None)
 	save_vc_state(state)
 
-	await interaction.response.send_message(
+	await interaction.followup.send(
 		"VCから退出しました。",
 		ephemeral=True
 	)
@@ -396,15 +453,12 @@ async def ping(interaction: discord.Interaction):
 
 @bot.tree.command(name="restart", description="ボットを再起動")
 @app_commands.check(is_admin_or_dev)
-async def restart(interaction: discord.Interaction):
-	await interaction.response.send_message(
-		"ボットを再起動します..."
-	)
-	await bot.close()
-
+async def restart(interaction):
+	await interaction.response.send_message("ボットを再起動します...")
 	python_executable = sys.executable
 	script_path = os.path.abspath(__file__)
 	subprocess.Popen([python_executable, script_path])
+	await bot.close()
 
 # =========================================================
 # /shutdown
@@ -447,6 +501,27 @@ async def mode_cmd(
 		ephemeral=True
 	)
 
+@bot.event
+async def on_message(message: discord.Message):
+	if message.author.bot:
+		return
+
+	mode = user_modes.get(message.author.id, "hiragana")
+	if mode == "nasi":
+		return
+
+	try:
+		converted = romaji_to_kana(message.content, mode)
+		register_word(message.content)
+
+		if converted != message.content:
+			await message.channel.send(converted)
+
+	except Exception as e:
+		print(f"変換エラー: {e}")
+
+	await bot.process_commands(message)
+
 # =========================================================
 # ================= コマンドライン入力処理 ==================
 # =========================================================
@@ -468,19 +543,21 @@ def input_handler():
 				)
 				python_executable = sys.executable
 				script_path = os.path.abspath(__file__)
+				asyncio.run_coroutine_threadsafe(bot.close(), bot.loop)
 				subprocess.Popen([python_executable, script_path])
 				break
 
-			elif cmd == "shutdown" or cmd == "stop" or cmd == "exit":
-				print("ボットをシャットダウンします...")
-				asyncio.run_coroutine_threadsafe(
-					send_system_embed(
-						"⛔ Bot Shutdown",
-						"コンソール操作によりシャットダウンします"
-					),
-					bot.loop
-				)
-				break
+			elif cmd in ("shutdown", "stop", "exit"):
+					print("ボットをシャットダウンします...")
+					asyncio.run_coroutine_threadsafe(
+							send_system_embed(
+									"⛔ Bot Shutdown",
+									"コンソール操作によりシャットダウンします"
+							),
+							bot.loop
+					)
+					asyncio.run_coroutine_threadsafe(bot.close(), bot.loop)
+					break
 
 			elif cmd == "help":
 				print("\n=== コマンド一覧 ===")
