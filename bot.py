@@ -68,20 +68,21 @@ async def vc_watchdog(guild_id: int, channel: discord.VoiceChannel):
 		if not guild:
 			return
 
-		vc = guild.voice_client
-
-		# 手動切断なら監視終了
+		# /leave されたら監視終了
 		if guild_id in bot.manual_disconnect:
 			bot.manual_disconnect.remove(guild_id)
 			return
 
-		# 切断されていたら再接続
+		vc = guild.voice_client
+
+		# 切断されていたら再接続（何度でも）
 		if not vc or not vc.is_connected():
 			try:
 				await channel.connect()
+				print("VC再接続成功")
 			except Exception as e:
 				print(f"再接続失敗: {e}")
-			return
+				# 失敗しても監視は続行
 
 # 起動
 
