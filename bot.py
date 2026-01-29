@@ -7,7 +7,8 @@ import os
 import json
 import asyncio
 import sys
-import logging
+import random
+import re
 from dotenv import load_dotenv
 from datetime import datetime
 if sys.platform == "win32":
@@ -120,6 +121,13 @@ async def help_cmd(interaction: discord.Interaction):
 
 	await interaction.response.send_message(embed=embed)
 
+# アプリ
+
+# thinking
+
+
+# コマンド
+
 # 画像コマンド
 
 # /sonanoka
@@ -141,6 +149,54 @@ async def sonanoda(interaction: discord.Interaction):
 async def flandre(interaction: discord.Interaction):
 	await interaction.response.send_message(
 		file=discord.File("flandre.png")
+	)
+
+# 遊ぶ系コマンド
+
+# /dice
+@bot.tree.command(name="dice", description="ダイスを振る（例: 1d20, 2d6+3）")
+@app_commands.describe(notation="ダイス表記（例: 1d20, 2d6+3）")
+async def dice(interaction: discord.Interaction, notation: str):
+	m = re.fullmatch(r"(\d+)[dD](\d+)([+-]\d+)?", notation.strip())
+	if not m:
+		await interaction.response.send_message(
+			"形式が正しくありません。例: `1d20`, `2d6+3`",
+			ephemeral=True
+		)
+		return
+
+	n = int(m.group(1))                     # 個数
+	sides = int(m.group(2))                 # 面数
+	mod = int(m.group(3)) if m.group(3) else 0  # 補正
+
+	if n < 1 or n > 100 or sides < 1 or sides > 1000 or abs(mod) > 100:
+		await interaction.response.send_message(
+			"指定範囲外です（個数:1–100、面数:1–1000、補正:±100）",
+			ephemeral=True
+		)
+		return
+
+	rolls = [random.randint(1, sides) for _ in range(n)]
+	total = sum(rolls) + mod
+
+	# クリティカル / ファンブル判定（全ダイス対応）
+	crit = any(1 <= r <= 5 for r in rolls)
+	fumble = any((sides - 5) <= r <= sides for r in rolls)
+
+	flag_text = ""
+	if crit and fumble:
+		flag_text = " **🎉 クリティカル！／💥 ファンブル！**"
+	elif crit:
+		flag_text = " **🎉 クリティカル！**"
+	elif fumble:
+		flag_text = " **💥 ファンブル！**"
+
+	mod_text = f"{'+' if mod >= 0 else ''}{mod}" if mod else ""
+
+	await interaction.response.send_message(
+		f"🎲 `{n}d{sides}{mod_text}`{flag_text}\n"
+		f"出目: {rolls}\n"
+		f"合計: **{total}**"
 	)
 
 # 削除系コマンド
@@ -270,7 +326,7 @@ async def admin_del(interaction: discord.Interaction, count: int):
 @bot.tree.command(name="test", description="テスト")
 async def test(interaction: discord.Interaction):
 	await interaction.response.send_message(
-		"Hello World!"
+		"test"
 	)
 
 # /ping
