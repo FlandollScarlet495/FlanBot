@@ -38,6 +38,7 @@ bot = commands.Bot(
 	help_command=None
 )
 
+bot.manual_disconnect = set()
 VC_STATE_FILE = "vc_state.json"
 MAX_DELETE = 50
 
@@ -58,6 +59,29 @@ def load_vc_state():
 def save_vc_state(state: dict):
 	with open(VC_STATE_FILE, "w", encoding="utf-8") as f:
 		json.dump(state, f, indent=2, ensure_ascii=False)
+
+async def vc_watchdog(guild_id: int, channel: discord.VoiceChannel):
+	while True:
+		await asyncio.sleep(3)
+
+		guild = bot.get_guild(guild_id)
+		if not guild:
+			return
+
+		vc = guild.voice_client
+
+		# 手動切断なら監視終了
+		if guild_id in bot.manual_disconnect:
+			bot.manual_disconnect.remove(guild_id)
+			return
+
+		# 切断されていたら再接続
+		if not vc or not vc.is_connected():
+			try:
+				await channel.connect()
+			except Exception as e:
+				print(f"再接続失敗: {e}")
+			return
 
 # 起動
 
@@ -244,7 +268,7 @@ async def admin_del(interaction: discord.Interaction, count: int):
 # /test
 @bot.tree.command(name="test", description="テスト")
 async def test(interaction: discord.Interaction):
-  await interaction.response.send_message(
+	await interaction.response.send_message(
 		"Hello World!"
 	)
 
@@ -268,24 +292,23 @@ async def about(interaction: discord.Interaction):
 @bot.tree.command(name="join", description="VCに参加")
 async def join(interaction: discord.Interaction):
 	if not interaction.user.voice or not interaction.user.voice.channel:
-		await interaction.response.send_message(
-			"先にVCへ参加してください"
-		)
+		await interaction.response.send_message("先にVCへ参加してください")
 		return
 
 	channel = interaction.user.voice.channel
 
 	if interaction.guild.voice_client:
-		await interaction.response.send_message(
-			"すでにVCに参加しています"
-		)
+		await interaction.response.send_message("すでにVCに参加しています")
 		return
 
 	await channel.connect()
 
-	await interaction.response.send_message(
-		f"「{channel}」に参加しました"
+	# 監視タスク開始
+	bot.loop.create_task(
+		vc_watchdog(interaction.guild.id, channel)
 	)
+
+	await interaction.response.send_message(f"「{channel}」に参加しました")
 
 # /leave
 @bot.tree.command(name="leave", description="VCから退出")
@@ -293,15 +316,12 @@ async def leave(interaction: discord.Interaction):
 	vc = interaction.guild.voice_client
 	
 	if not vc:
-		await interaction.response.send_message(
-			"VCに参加していません"
-		)
+		await interaction.response.send_message("VCに参加していません")
 		return
 	
+	bot.manual_disconnect.add(interaction.guild.id)
+
 	await vc.disconnect()
-	
-	await interaction.response.send_message(
-		"VCから退出しました"
-	)
+	await interaction.response.send_message("VCから退出しました")
 
 bot.run(TOKEN)
