@@ -106,11 +106,11 @@ async def help_cmd(interaction: discord.Interaction):
 		title="ふらんちゃんbot コマンド一覧",
 		color=discord.Color.blue()
 	)
-	embed.add_field(name="アプリ(thinking)", value="返信先に🤔リアクション (準備中)", inline=False)
+	embed.add_field(name="thinking(アプリ)", value="返信先に🤔リアクション", inline=False)
 	embed.add_field(name="/sonanoka", value="そーなのかー画像表示", inline=False)
 	embed.add_field(name="/sonanoda", value="そーなのだー画像表示", inline=False)
 	embed.add_field(name="/flandre", value="ふらんちゃん画像表示", inline=False)
-	embed.add_field(name="/dice", value="サイコロを振る (準備中)", inline=False)
+	embed.add_field(name="/dice", value="サイコロを振る", inline=False)
 	embed.add_field(name="/delete", value="自分＋bot削除", inline=False)
 	embed.add_field(name="/admin_del", value="管理者専用削除", inline=False)
 	embed.add_field(name="/test", value="テスト", inline=False)
@@ -120,11 +120,32 @@ async def help_cmd(interaction: discord.Interaction):
 	embed.add_field(name="/leave", value="VC退出", inline=False)
 
 	await interaction.response.send_message(embed=embed)
+	print("/helpが実行されました")
 
 # アプリ
 
 # thinking
-
+@bot.tree.context_menu(name="thinking")
+async def thinking(interaction: discord.Interaction, message: discord.Message):
+	try:
+		await message.add_reaction("🤔")
+		await interaction.response.send_message(
+			"🤔 を付けました",
+			ephemeral=True
+		)
+		print("thinking(アプリ)が実行されました、thinkingを付けれました")
+	except discord.Forbidden:
+		await interaction.response.send_message(
+			"リアクションを付ける権限がありません",
+			ephemeral=True
+		)
+		print("thinking(アプリ)が実行されました、リアクションをつける権限がありませんでした")
+	except Exception as e:
+		await interaction.response.send_message(
+			"エラーが発生しました",
+			ephemeral=True
+		)
+		print("thinking(アプリ)で実行する前にエラーが発生しました")
 
 # コマンド
 
@@ -136,6 +157,7 @@ async def sonanoka(interaction: discord.Interaction):
 	await interaction.response.send_message(
 		file=discord.File("sonanoka.png")
 	)
+	print("/sonanokaが実行されました")
 
 # /sonanoda
 @bot.tree.command(name="sonanoda", description="そーなのだー")
@@ -143,6 +165,7 @@ async def sonanoda(interaction: discord.Interaction):
 	await interaction.response.send_message(
 		file=discord.File("sonanoda.png")
 	)
+	print("/sonanodaが実行されました")
 
 # /flandre
 @bot.tree.command(name="flandre", description="ふらんちゃん")
@@ -150,6 +173,7 @@ async def flandre(interaction: discord.Interaction):
 	await interaction.response.send_message(
 		file=discord.File("flandre.png")
 	)
+	print("/flandreが実行されました")
 
 # 遊ぶ系コマンド
 
@@ -198,6 +222,7 @@ async def dice(interaction: discord.Interaction, notation: str):
 		f"出目: {rolls}\n"
 		f"合計: **{total}**"
 	)
+	print("/diceが実行されました")
 
 # 削除系コマンド
 
@@ -230,6 +255,7 @@ async def delete(interaction: discord.Interaction, count: int):
 	await interaction.followup.send(
 		f"{len(deleted)} 件のメッセージを削除しました",
 	)
+	print("/deleteが実行されました")
  
 # /admin_del
 class AdminDeleteConfirm(discord.ui.View):
@@ -319,6 +345,7 @@ async def admin_del(interaction: discord.Interaction, count: int):
 		view=view,
 		ephemeral=True
 	)
+	print("/admin_delが実行されました")
 
 # 動作確認コマンド
 
@@ -328,6 +355,7 @@ async def test(interaction: discord.Interaction):
 	await interaction.response.send_message(
 		"test"
 	)
+	print("/testが実行されました")
 
 # /ping
 @bot.tree.command(name="ping", description="動作速度確認")
@@ -335,6 +363,7 @@ async def ping(interaction: discord.Interaction):
 	await interaction.response.send_message(
 		f"🏓 {round(bot.latency * 1000)}ms"
 	)
+	print("/pingが実行されました")
 
 # /about
 @bot.tree.command(name="about", description="動作確認")
@@ -342,6 +371,7 @@ async def about(interaction: discord.Interaction):
 	await interaction.response.send_message(
 		"flandre, ふらんちゃん"
 	)
+	print("/aboutが実行されました")
 
 # ボイスチャットコマンド
 
@@ -366,6 +396,7 @@ async def join(interaction: discord.Interaction):
 	)
 
 	await interaction.response.send_message(f"「{channel}」に参加しました")
+	print("/joinが実行されました、VCから参加しました")
 
 # /leave
 @bot.tree.command(name="leave", description="VCから退出")
@@ -380,5 +411,6 @@ async def leave(interaction: discord.Interaction):
 
 	await vc.disconnect()
 	await interaction.response.send_message("VCから退出しました")
+	print("/leaveが実行されました、VCから退出しました")
 
 bot.run(TOKEN)
