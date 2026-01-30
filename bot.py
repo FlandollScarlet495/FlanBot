@@ -61,30 +61,6 @@ def save_vc_state(state: dict):
 	with open(VC_STATE_FILE, "w", encoding="utf-8") as f:
 		json.dump(state, f, indent=2, ensure_ascii=False)
 
-async def vc_watchdog(guild_id: int, channel: discord.VoiceChannel):
-	while True:
-		await asyncio.sleep(3)
-
-		guild = bot.get_guild(guild_id)
-		if not guild:
-			return
-
-		# /leave されたら監視終了
-		if guild_id in bot.manual_disconnect:
-			bot.manual_disconnect.remove(guild_id)
-			return
-
-		vc = guild.voice_client
-
-		# 切断されていたら再接続（何度でも）
-		if not vc or not vc.is_connected():
-			try:
-				await channel.connect()
-				print("VC再接続成功")
-			except Exception as e:
-				print(f"再接続失敗: {e}")
-				# 失敗しても監視は続行
-
 # 起動
 
 @bot.event
@@ -125,7 +101,7 @@ async def help_cmd(interaction: discord.Interaction):
 # アプリ
 
 # thinking
-@bot.tree.context_menu(name="thinking")
+@bot.tree.context_menu(name="🤔 thinking")
 async def thinking(interaction: discord.Interaction, message: discord.Message):
 	try:
 		await message.add_reaction("🤔")
@@ -375,6 +351,42 @@ async def about(interaction: discord.Interaction):
 
 # ボイスチャットコマンド
 
+async def vc_watchdog(guild_id: int):
+	while True:
+		await asyncio.sleep(3)
+
+		guild = bot.get_guild(guild_id)
+		if not guild:
+			return
+
+		# /leave のときだけ終了
+		if guild_id in bot.manual_disconnect:
+			bot.manual_disconnect.remove(guild_id)
+			print("手動切断、監視終了")
+			return
+
+		vc = guild.voice_client
+
+		# まだ接続中 or 接続試行中なら何もしない
+		if vc and vc.is_connected():
+			continue
+
+		# 再接続先は「最後に人がいるVC」
+		channel = None
+		for member in guild.members:
+			if member.voice and member.voice.channel:
+				channel = member.voice.channel
+				break
+
+		if not channel:
+			continue  # 接続先が無いなら待つ
+
+		try:
+			await channel.connect()
+			print(f"VC再接続成功: {channel}")
+		except Exception as e:
+			print(f"VC再接続失敗: {e}")
+
 # /join
 @bot.tree.command(name="join", description="VCに参加")
 async def join(interaction: discord.Interaction):
@@ -390,9 +402,9 @@ async def join(interaction: discord.Interaction):
 
 	await channel.connect()
 
-	# 監視タスク開始
+	# 監視タスク開始（guild_id のみ渡す）
 	bot.loop.create_task(
-		vc_watchdog(interaction.guild.id, channel)
+		vc_watchdog(interaction.guild.id)
 	)
 
 	await interaction.response.send_message(f"「{channel}」に参加しました")
@@ -408,8 +420,8 @@ async def leave(interaction: discord.Interaction):
 		return
 	
 	bot.manual_disconnect.add(interaction.guild.id)
-
 	await vc.disconnect()
+
 	await interaction.response.send_message("VCから退出しました")
 	print("/leaveが実行されました、VCから退出しました")
 
