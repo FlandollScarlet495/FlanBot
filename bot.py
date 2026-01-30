@@ -83,9 +83,12 @@ async def help_cmd(interaction: discord.Interaction):
 		color=discord.Color.blue()
 	)
 	embed.add_field(name="thinking(アプリ)", value="返信先に🤔リアクション", inline=False)
+	embed.add_field(name="/give_role", value="指定したユーザーにロールを付与", inline=False)
+	embed.add_field(name="/remove_role", value="指定したユーザーからロールを剥奪", inline=False)
 	embed.add_field(name="/sonanoka", value="そーなのかー画像表示", inline=False)
 	embed.add_field(name="/sonanoda", value="そーなのだー画像表示", inline=False)
 	embed.add_field(name="/flandre", value="ふらんちゃん画像表示", inline=False)
+	embed.add_field(name="/stamp1", value="ふらんちゃんスタンプ表示", inline=False)
 	embed.add_field(name="/dice", value="サイコロを振る", inline=False)
 	embed.add_field(name="/delete", value="自分＋bot削除", inline=False)
 	embed.add_field(name="/admin_del", value="管理者専用削除", inline=False)
@@ -125,6 +128,138 @@ async def thinking(interaction: discord.Interaction, message: discord.Message):
 
 # コマンド
 
+# 管理系コマンド
+
+# /give_role
+@bot.tree.command(name="give_role", description="指定したユーザーにロールを付与")
+@app_commands.describe(
+	member="ロールを付与するユーザー",
+	role="付与するロール"
+)
+async def give_role(
+	interaction: discord.Interaction,
+	member: discord.Member,
+	role: discord.Role
+):
+	# 実行者チェック
+	if not is_admin_or_dev(interaction):
+		await interaction.response.send_message(
+			"権限がありません",
+			ephemeral=True
+		)
+		return
+
+	guild = interaction.guild
+	bot_member = guild.me
+
+	# Botがロール管理権限を持っているか
+	if not bot_member.guild_permissions.manage_roles:
+		await interaction.response.send_message(
+			"Botにロール管理権限がありません",
+			ephemeral=True
+		)
+		return
+
+	# すでにロールを持っている
+	if role in member.roles:
+		await interaction.response.send_message(
+			f"{member.mention} はすでに {role.name} を持っています",
+			ephemeral=True
+		)
+		return
+
+	# ロール階層チェック
+	if role >= bot_member.top_role:
+		await interaction.response.send_message(
+			"Botのロール階層が低すぎて、このロールは付与できません",
+			ephemeral=True
+		)
+		return
+
+	try:
+		await member.add_roles(
+			role,
+			reason=f"give_role by {interaction.user}"
+		)
+		await interaction.response.send_message(
+			f"{member.mention} に **{role.name}** を付与しました"
+		)
+	except discord.Forbidden:
+		await interaction.response.send_message(
+			"権限不足でロールを付与できません",
+			ephemeral=True
+		)
+	except Exception as e:
+		await interaction.response.send_message(
+			f"エラーが発生しました: {e}",
+			ephemeral=True
+		)
+
+# /remove_role
+@bot.tree.command(name="remove_role", description="指定したユーザーからロールを剥奪")
+@app_commands.describe(
+	member="ロールを剥奪するユーザー",
+	role="剥奪するロール"
+)
+async def remove_role(
+	interaction: discord.Interaction,
+	member: discord.Member,
+	role: discord.Role
+):
+	# 実行者チェック
+	if not is_admin_or_dev(interaction):
+		await interaction.response.send_message(
+			"権限がありません",
+			ephemeral=True
+		)
+		return
+
+	guild = interaction.guild
+	bot_member = guild.me
+
+	# Botのロール管理権限確認
+	if not bot_member.guild_permissions.manage_roles:
+		await interaction.response.send_message(
+			"Botにロール管理権限がありません",
+			ephemeral=True
+		)
+		return
+
+	# 対象がそのロールを持っていない
+	if role not in member.roles:
+		await interaction.response.send_message(
+			f"{member.mention} は {role.name} を持っていません",
+			ephemeral=True
+		)
+		return
+
+	# ロール階層チェック
+	if role >= bot_member.top_role:
+		await interaction.response.send_message(
+			"Botのロール階層が低すぎて、このロールは剥奪できません",
+			ephemeral=True
+		)
+		return
+
+	try:
+		await member.remove_roles(
+			role,
+			reason=f"remove_role by {interaction.user}"
+		)
+		await interaction.response.send_message(
+			f"{member.mention} から **{role.name}** を剥奪しました"
+		)
+	except discord.Forbidden:
+		await interaction.response.send_message(
+			"権限不足でロールを剥奪できません",
+			ephemeral=True
+		)
+	except Exception as e:
+		await interaction.response.send_message(
+			f"エラーが発生しました: {e}",
+			ephemeral=True
+		)
+
 # 画像コマンド
 
 # /sonanoka
@@ -150,6 +285,49 @@ async def flandre(interaction: discord.Interaction):
 		file=discord.File("flandre.png")
 	)
 	print("/flandreが実行されました")
+
+# /stamp1
+@bot.tree.command(name="stamp1", description="スタンプ画像を表示（例: flan:p0）")
+@app_commands.describe(name="スタンプ名（例: flan:p0 ～ flan:p52）")
+async def stamp1(interaction: discord.Interaction, name: str):
+	# flan:p<number> をパース
+	if not name.startswith("flan:p"):
+		await interaction.response.send_message(
+			"形式が違います（例: flan:p0）",
+			ephemeral=True
+		)
+		return
+
+	num_part = name.replace("flan:p", "", 1)
+
+	if not num_part.isdigit():
+		await interaction.response.send_message(
+			"番号は数字で指定してください（例: flan:p12）",
+			ephemeral=True
+		)
+		return
+
+	n = int(num_part)
+
+	if n < 0 or n > 52:
+		await interaction.response.send_message(
+			"番号は 0〜52 の範囲で指定してください",
+			ephemeral=True
+		)
+		return
+
+	filename = f"p{n}.png"
+
+	if not os.path.exists(filename):
+		await interaction.response.send_message(
+			"画像ファイルが見つかりません",
+			ephemeral=True
+		)
+		return
+
+	await interaction.response.send_message(
+		file=discord.File(filename)
+	)
 
 # 遊ぶ系コマンド
 
