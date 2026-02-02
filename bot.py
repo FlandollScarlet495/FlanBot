@@ -316,7 +316,7 @@ async def stamp1(interaction: discord.Interaction, name: str):
 		)
 		return
 
-	filename = f"p{n}.png"
+	filename = f"stamp1/p{n}.png"
 
 	if not os.path.exists(filename):
 		await interaction.response.send_message(
