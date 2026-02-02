@@ -286,23 +286,23 @@ async def flandre(interaction: discord.Interaction):
 	)
 	print("/flandreが実行されました")
 
-# /stamp1
-@bot.tree.command(name="stamp1", description="スタンプ画像を表示（例: flan:p0）")
-@app_commands.describe(name="スタンプ名（例: flan:p0 ～ flan:p52）")
+# /stamp1_flan
+@bot.tree.command(name="stamp1_flan", description="スタンプ画像を表示（例: p0）")
+@app_commands.describe(name="スタンプ名（例: p0 ～ p52）")
 async def stamp1(interaction: discord.Interaction, name: str):
 	# flan:p<number> をパース
-	if not name.startswith("flan:p"):
+	if not name.startswith("p"):
 		await interaction.response.send_message(
-			"形式が違います（例: flan:p0）",
+			"形式が違います（例: p0）",
 			ephemeral=True
 		)
 		return
 
-	num_part = name.replace("flan:p", "", 1)
+	num_part = name.replace("p", "", 1)
 
 	if not num_part.isdigit():
 		await interaction.response.send_message(
-			"番号は数字で指定してください（例: flan:p12）",
+			"番号は数字で指定してください（例: p12）",
 			ephemeral=True
 		)
 		return
