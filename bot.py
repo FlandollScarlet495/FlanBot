@@ -41,6 +41,7 @@ bot = commands.Bot(
 
 bot.manual_disconnect = set()
 VC_STATE_FILE = "vc_state.json"
+VC_ALLOW_FILE = "vc_allow.json"
 MAX_DELETE = 50
 
 # 共通関数
@@ -60,6 +61,16 @@ def load_vc_state():
 def save_vc_state(state: dict):
 	with open(VC_STATE_FILE, "w", encoding="utf-8") as f:
 		json.dump(state, f, indent=2, ensure_ascii=False)
+
+def load_vc_allow():
+	if not os.path.exists(VC_ALLOW_FILE):
+		return {"users": [], "roles": []}
+	with open(VC_ALLOW_FILE, "r", encoding="utf-8") as f:
+		return json.load(f)
+
+def save_vc_allow(data: dict):
+	with open(VC_ALLOW_FILE, "w", encoding="utf-8") as f:
+		json.dump(data, f, indent=2, ensure_ascii=False)
 
 # 起動
 
@@ -108,22 +119,13 @@ async def help_cmd(interaction: discord.Interaction):
 async def thinking(interaction: discord.Interaction, message: discord.Message):
 	try:
 		await message.add_reaction("🤔")
-		await interaction.response.send_message(
-			"🤔 を付けました",
-			ephemeral=True
-		)
+		await interaction.response.send_message("🤔 を付けました", ephemeral=True)
 		print("thinking(アプリ)が実行されました、thinkingを付けれました")
 	except discord.Forbidden:
-		await interaction.response.send_message(
-			"リアクションを付ける権限がありません",
-			ephemeral=True
-		)
-		print("thinking(アプリ)が実行されました、リアクションをつける権限がありませんでした")
+		await interaction.response.send_message("リアクションを付ける権限がありません", ephemeral=True)
+		print("thinking(アプリ)が実行されました、リアクションを付ける権限がありませんでした")
 	except Exception as e:
-		await interaction.response.send_message(
-			"エラーが発生しました",
-			ephemeral=True
-		)
+		await interaction.response.send_message("エラーが発生しました", ephemeral=True)
 		print("thinking(アプリ)で実行する前にエラーが発生しました")
 
 # コマンド
@@ -132,21 +134,11 @@ async def thinking(interaction: discord.Interaction, message: discord.Message):
 
 # /give_role
 @bot.tree.command(name="give_role", description="指定したユーザーにロールを付与")
-@app_commands.describe(
-	member="ロールを付与するユーザー",
-	role="付与するロール"
-)
-async def give_role(
-	interaction: discord.Interaction,
-	member: discord.Member,
-	role: discord.Role
-):
+@app_commands.describe(member="ロールを付与するユーザー", role="付与するロール")
+async def give_role(interaction: discord.Interaction, member: discord.Member, role: discord.Role):
 	# 実行者チェック
 	if not is_admin_or_dev(interaction):
-		await interaction.response.send_message(
-			"権限がありません",
-			ephemeral=True
-		)
+		await interaction.response.send_message("権限がありません", ephemeral=True)
 		return
 
 	guild = interaction.guild
@@ -154,64 +146,34 @@ async def give_role(
 
 	# Botがロール管理権限を持っているか
 	if not bot_member.guild_permissions.manage_roles:
-		await interaction.response.send_message(
-			"Botにロール管理権限がありません",
-			ephemeral=True
-		)
+		await interaction.response.send_message("Botにロール管理権限がありません", ephemeral=True)
 		return
 
 	# すでにロールを持っている
 	if role in member.roles:
-		await interaction.response.send_message(
-			f"{member.mention} はすでに {role.name} を持っています",
-			ephemeral=True
-		)
+		await interaction.response.send_message(f"{member.mention} はすでに {role.name} を持っています", ephemeral=True)
 		return
 
 	# ロール階層チェック
 	if role >= bot_member.top_role:
-		await interaction.response.send_message(
-			"Botのロール階層が低すぎて、このロールは付与できません",
-			ephemeral=True
-		)
+		await interaction.response.send_message("Botのロール階層が低すぎて、このロールは付与できません", ephemeral=True)
 		return
 
 	try:
-		await member.add_roles(
-			role,
-			reason=f"give_role by {interaction.user}"
-		)
-		await interaction.response.send_message(
-			f"{member.mention} に **{role.name}** を付与しました"
-		)
+		await member.add_roles(role, reason=f"give_role by {interaction.user}")
+		await interaction.response.send_message(f"{member.mention} に **{role.name}** を付与しました")
 	except discord.Forbidden:
-		await interaction.response.send_message(
-			"権限不足でロールを付与できません",
-			ephemeral=True
-		)
+		await interaction.response.send_message("権限不足でロールを付与できません", ephemeral=True)
 	except Exception as e:
-		await interaction.response.send_message(
-			f"エラーが発生しました: {e}",
-			ephemeral=True
-		)
+		await interaction.response.send_message(f"エラーが発生しました: {e}", ephemeral=True)
 
 # /remove_role
 @bot.tree.command(name="remove_role", description="指定したユーザーからロールを剥奪")
-@app_commands.describe(
-	member="ロールを剥奪するユーザー",
-	role="剥奪するロール"
-)
-async def remove_role(
-	interaction: discord.Interaction,
-	member: discord.Member,
-	role: discord.Role
-):
+@app_commands.describe(member="ロールを剥奪するユーザー", role="剥奪するロール")
+async def remove_role(interaction: discord.Interaction, member: discord.Member, role: discord.Role):
 	# 実行者チェック
 	if not is_admin_or_dev(interaction):
-		await interaction.response.send_message(
-			"権限がありません",
-			ephemeral=True
-		)
+		await interaction.response.send_message("権限がありません", ephemeral=True)
 		return
 
 	guild = interaction.guild
@@ -219,71 +181,45 @@ async def remove_role(
 
 	# Botのロール管理権限確認
 	if not bot_member.guild_permissions.manage_roles:
-		await interaction.response.send_message(
-			"Botにロール管理権限がありません",
-			ephemeral=True
-		)
+		await interaction.response.send_message("Botにロール管理権限がありません", ephemeral=True)
 		return
 
 	# 対象がそのロールを持っていない
 	if role not in member.roles:
-		await interaction.response.send_message(
-			f"{member.mention} は {role.name} を持っていません",
-			ephemeral=True
-		)
+		await interaction.response.send_message(f"{member.mention} は {role.name} を持っていません", ephemeral=True)
 		return
 
 	# ロール階層チェック
 	if role >= bot_member.top_role:
-		await interaction.response.send_message(
-			"Botのロール階層が低すぎて、このロールは剥奪できません",
-			ephemeral=True
-		)
+		await interaction.response.send_message("Botのロール階層が低すぎて、このロールは剥奪できません", ephemeral=True)
 		return
 
 	try:
-		await member.remove_roles(
-			role,
-			reason=f"remove_role by {interaction.user}"
-		)
-		await interaction.response.send_message(
-			f"{member.mention} から **{role.name}** を剥奪しました"
-		)
+		await member.remove_roles(role, reason=f"remove_role by {interaction.user}")
+		await interaction.response.send_message(f"{member.mention} から **{role.name}** を剥奪しました")
 	except discord.Forbidden:
-		await interaction.response.send_message(
-			"権限不足でロールを剥奪できません",
-			ephemeral=True
-		)
+		await interaction.response.send_message("権限不足でロールを剥奪できません", ephemeral=True)
 	except Exception as e:
-		await interaction.response.send_message(
-			f"エラーが発生しました: {e}",
-			ephemeral=True
-		)
+		await interaction.response.send_message(f"エラーが発生しました: {e}", ephemeral=True)
 
 # 画像コマンド
 
 # /sonanoka
 @bot.tree.command(name="sonanoka", description="そーなのかー")
 async def sonanoka(interaction: discord.Interaction):
-	await interaction.response.send_message(
-		file=discord.File("sonanoka.png")
-	)
+	await interaction.response.send_message(file=discord.File("sonanoka.png"))
 	print("/sonanokaが実行されました")
 
 # /sonanoda
 @bot.tree.command(name="sonanoda", description="そーなのだー")
 async def sonanoda(interaction: discord.Interaction):
-	await interaction.response.send_message(
-		file=discord.File("sonanoda.png")
-	)
+	await interaction.response.send_message(file=discord.File("sonanoda.png"))
 	print("/sonanodaが実行されました")
 
 # /flandre
 @bot.tree.command(name="flandre", description="ふらんちゃん")
 async def flandre(interaction: discord.Interaction):
-	await interaction.response.send_message(
-		file=discord.File("flandre.png")
-	)
+	await interaction.response.send_message(file=discord.File("flandre.png"))
 	print("/flandreが実行されました")
 
 # /stamp1_flan
@@ -292,42 +228,28 @@ async def flandre(interaction: discord.Interaction):
 async def stamp1(interaction: discord.Interaction, name: str):
 	# flan:p<number> をパース
 	if not name.startswith("p"):
-		await interaction.response.send_message(
-			"形式が違います（例: p0）",
-			ephemeral=True
-		)
+		await interaction.response.send_message("形式が違います（例: p0）", ephemeral=True)
 		return
 
 	num_part = name.replace("p", "", 1)
 
 	if not num_part.isdigit():
-		await interaction.response.send_message(
-			"番号は数字で指定してください（例: p12）",
-			ephemeral=True
-		)
+		await interaction.response.send_message("番号は数字で指定してください（例: p12）", ephemeral=True)
 		return
 
 	n = int(num_part)
 
 	if n < 0 or n > 52:
-		await interaction.response.send_message(
-			"番号は 0〜52 の範囲で指定してください",
-			ephemeral=True
-		)
+		await interaction.response.send_message("番号は 0〜52 の範囲で指定してください", ephemeral=True)
 		return
 
 	filename = f"stamp1/p{n}.png"
 
 	if not os.path.exists(filename):
-		await interaction.response.send_message(
-			"画像ファイルが見つかりません",
-			ephemeral=True
-		)
+		await interaction.response.send_message("画像ファイルが見つかりません", ephemeral=True)
 		return
 
-	await interaction.response.send_message(
-		file=discord.File(filename)
-	)
+	await interaction.response.send_message(file=discord.File(filename))
 
 # 遊ぶ系コマンド
 
@@ -337,10 +259,7 @@ async def stamp1(interaction: discord.Interaction, name: str):
 async def dice(interaction: discord.Interaction, notation: str):
 	m = re.fullmatch(r"(\d+)[dD](\d+)([+-]\d+)?", notation.strip())
 	if not m:
-		await interaction.response.send_message(
-			"形式が正しくありません。例: `1d20`, `2d6+3`",
-			ephemeral=True
-		)
+		await interaction.response.send_message("形式が正しくありません。例: `1d20`, `2d6+3`", ephemeral=True)
 		return
 
 	n = int(m.group(1))                     # 個数
@@ -348,10 +267,7 @@ async def dice(interaction: discord.Interaction, notation: str):
 	mod = int(m.group(3)) if m.group(3) else 0  # 補正
 
 	if n < 1 or n > 100 or sides < 1 or sides > 1000 or abs(mod) > 100:
-		await interaction.response.send_message(
-			"指定範囲外です（個数:1–100、面数:1–1000、補正:±100）",
-			ephemeral=True
-		)
+		await interaction.response.send_message("指定範囲外です（個数:1–100、面数:1–1000、補正:±100）", ephemeral=True)
 		return
 
 	rolls = [random.randint(1, sides) for _ in range(n)]
@@ -371,11 +287,7 @@ async def dice(interaction: discord.Interaction, notation: str):
 
 	mod_text = f"{'+' if mod >= 0 else ''}{mod}" if mod else ""
 
-	await interaction.response.send_message(
-		f"🎲 `{n}d{sides}{mod_text}`{flag_text}\n"
-		f"出目: {rolls}\n"
-		f"合計: **{total}**"
-	)
+	await interaction.response.send_message(f"🎲 `{n}d{sides}{mod_text}`{flag_text}\n", f"出目: {rolls}\n", f"合計: **{total}**")
 	print("/diceが実行されました")
 
 # 削除系コマンド
@@ -385,10 +297,7 @@ async def dice(interaction: discord.Interaction, notation: str):
 @app_commands.describe(count="削除する件数（最大50）")
 async def delete(interaction: discord.Interaction, count: int):
 	if count < 1:
-		await interaction.response.send_message(
-			"1以上を指定してください",
-			ephemeral=True
-		)
+		await interaction.response.send_message("1以上を指定してください", ephemeral=True)
 		return
 
 	count = min(count, MAX_DELETE)
@@ -396,19 +305,11 @@ async def delete(interaction: discord.Interaction, count: int):
 	await interaction.response.defer(ephemeral=True)
 
 	def check(msg: discord.Message):
-		return (
-			msg.author.id == interaction.user.id
-			or msg.author.bot
-		)
+		return (msg.author.id == interaction.user.id or msg.author.bot)
 
-	deleted = await interaction.channel.purge(
-		limit=count,
-		check=check
-	)
+	deleted = await interaction.channel.purge(limit=count, check=check)
 
-	await interaction.followup.send(
-		f"{len(deleted)} 件のメッセージを削除しました",
-	)
+	await interaction.followup.send(f"{len(deleted)} 件のメッセージを削除しました")
 	print("/deleteが実行されました")
  
 # /admin_del
@@ -421,34 +322,23 @@ class AdminDeleteConfirm(discord.ui.View):
 	async def on_timeout(self):
 		# タイムアウト時にメッセージ更新（interactionが残っていれば）
 		try:
-			await self.interaction.edit_original_response(
-				content="操作がタイムアウトしました",
-				view=None
-			)
+			await self.interaction.edit_original_response(content="操作がタイムアウトしました", view=None)
 		except Exception:
 			pass  # interaction が期限切れでも安全
 
 	@discord.ui.button(label="Yes", style=discord.ButtonStyle.danger)
 	async def yes(self, interaction: discord.Interaction, button: discord.ui.Button):
 		if interaction.user.id != self.interaction.user.id:
-			await interaction.response.send_message(
-				"操作できません", ephemeral=True
-			)
+			await interaction.response.send_message("操作できません", ephemeral=True)
 			return
 
 		deleted = await interaction.channel.purge(limit=self.count)
 
 		try:
 			if interaction.response.is_done():
-				await interaction.followup.send(
-					f"{len(deleted)} 件のメッセージを削除しました",
-					ephemeral=True
-				)
+				await interaction.followup.send(f"{len(deleted)} 件のメッセージを削除しました", ephemeral=True)
 			else:
-				await interaction.response.edit_message(
-					content=f"{len(deleted)} 件のメッセージを削除しました",
-					view=None
-				)
+				await interaction.response.edit_message(content=f"{len(deleted)} 件のメッセージを削除しました", view=None)
 		except discord.NotFound:
 			pass  # 安全に握りつぶす
 
@@ -457,19 +347,14 @@ class AdminDeleteConfirm(discord.ui.View):
 	@discord.ui.button(label="No", style=discord.ButtonStyle.secondary)
 	async def no(self, interaction: discord.Interaction, button: discord.ui.Button):
 		if interaction.user.id != self.interaction.user.id:
-			await interaction.response.send_message(
-				"操作できません", ephemeral=True
-			)
+			await interaction.response.send_message("操作できません", ephemeral=True)
 			return
 
 		try:
 			if interaction.response.is_done():
 				await interaction.followup.send("キャンセルしました", ephemeral=True)
 			else:
-				await interaction.response.edit_message(
-					content="キャンセルしました",
-					view=None
-				)
+				await interaction.response.edit_message(content="キャンセルしました", view=None)
 		except discord.NotFound:
 			pass
 
@@ -479,26 +364,18 @@ class AdminDeleteConfirm(discord.ui.View):
 @app_commands.describe(count="削除する件数（最大50）")
 async def admin_del(interaction: discord.Interaction, count: int):
 	if not is_admin_or_dev(interaction):
-		await interaction.response.send_message(
-			"権限がありません", ephemeral=True
-		)
+		await interaction.response.send_message("権限がありません", ephemeral=True)
 		return
 
 	if count < 1:
-		await interaction.response.send_message(
-			"1以上を指定してください", ephemeral=True
-		)
+		await interaction.response.send_message("1以上を指定してください", ephemeral=True)
 		return
 
 	count = min(count, MAX_DELETE)
 
 	view = AdminDeleteConfirm(interaction, count)
 
-	await interaction.response.send_message(
-		f"本当に **{count} 件** のメッセージを削除しますか？",
-		view=view,
-		ephemeral=True
-	)
+	await interaction.response.send_message(f"本当に **{count} 件** のメッセージを削除しますか？", view=view, ephemeral=True)
 	print("/admin_delが実行されました")
 
 # 動作確認コマンド
@@ -506,28 +383,41 @@ async def admin_del(interaction: discord.Interaction, count: int):
 # /test
 @bot.tree.command(name="test", description="テスト")
 async def test(interaction: discord.Interaction):
-	await interaction.response.send_message(
-		"test"
-	)
+	await interaction.response.send_message("test")
 	print("/testが実行されました")
 
 # /ping
 @bot.tree.command(name="ping", description="動作速度確認")
 async def ping(interaction: discord.Interaction):
-	await interaction.response.send_message(
-		f"🏓 {round(bot.latency * 1000)}ms"
-	)
+	await interaction.response.send_message(f"🏓 {round(bot.latency * 1000)}ms")
 	print("/pingが実行されました")
 
 # /about
 @bot.tree.command(name="about", description="動作確認")
 async def about(interaction: discord.Interaction):
-	await interaction.response.send_message(
-		"flandre, ふらんちゃん"
-	)
+	await interaction.response.send_message("flandre, ふらんちゃん")
 	print("/aboutが実行されました")
 
 # ボイスチャットコマンド
+
+def can_use_vc(interaction: discord.Interaction) -> bool:
+	# 管理者 or 開発者は常にOK
+	if (interaction.user.id == DEVELOPER_ID or interaction.user.guild_permissions.administrator):
+		return True
+
+	data = load_vc_allow()
+	member = interaction.user
+
+	# ユーザー許可
+	if member.id in data["users"]:
+		return True
+
+	# ロール許可
+	member_role_ids = {r.id for r in member.roles}
+	if any(rid in member_role_ids for rid in data["roles"]):
+		return True
+
+	return False
 
 async def vc_watchdog(guild_id: int):
 	while True:
@@ -565,25 +455,141 @@ async def vc_watchdog(guild_id: int):
 		except Exception as e:
 			print(f"VC再接続失敗: {e}")
 
+# /vc_allow_user_add
+@bot.tree.command(name="vc_allow_user_add", description="VC操作を許可するユーザーを追加")
+@app_commands.describe(member="許可するユーザー")
+async def vc_allow_user_add(interaction: discord.Interaction, member: discord.Member):
+	if not is_admin_or_dev(interaction):
+		await interaction.response.send_message("権限がありません", ephemeral=True)
+		return
+
+	data = load_vc_allow()
+
+	if member.id in data["users"]:
+		await interaction.response.send_message("すでに許可されています", ephemeral=True)
+		return
+
+	data["users"].append(member.id)
+	save_vc_allow(data)
+
+	await interaction.response.send_message(f"{member.mention} を VC操作許可ユーザーに追加しました")
+
+# /vc_allow_user_remove
+@bot.tree.command(name="vc_allow_user_remove", description="VC操作のユーザー許可を削除")
+@app_commands.describe(member="削除するユーザー")
+async def vc_allow_user_remove(interaction: discord.Interaction, member: discord.Member):
+	if not is_admin_or_dev(interaction):
+		await interaction.response.send_message("権限がありません", ephemeral=True)
+		return
+
+	data = load_vc_allow()
+
+	if member.id not in data["users"]:
+		await interaction.response.send_message("許可されていません", ephemeral=True)
+		return
+
+	data["users"].remove(member.id)
+	save_vc_allow(data)
+
+	await interaction.response.send_message(f"{member.mention} を VC操作許可から削除しました")
+
+# /vc_allow_role_add
+@bot.tree.command(name="vc_allow_role_add", description="VC操作を許可するロールを追加")
+@app_commands.describe(role="許可するロール")
+async def vc_allow_role_add(interaction: discord.Interaction, role: discord.Role):
+	if not is_admin_or_dev(interaction):
+		await interaction.response.send_message("権限がありません", ephemeral=True)
+		return
+
+	data = load_vc_allow()
+
+	if role.id in data["roles"]:
+		await interaction.response.send_message("すでに許可されています", ephemeral=True)
+		return
+
+	data["roles"].append(role.id)
+	save_vc_allow(data)
+
+	await interaction.response.send_message(
+		f"ロール **{role.name}** を VC操作許可に追加しました"
+	)
+
+# /vc_allow_role_remove
+@bot.tree.command(name="vc_allow_role_remove", description="VC操作のロール許可を削除")
+@app_commands.describe(role="削除するロール")
+async def vc_allow_role_remove(interaction: discord.Interaction, role: discord.Role):
+	if not is_admin_or_dev(interaction):
+		await interaction.response.send_message("権限がありません", ephemeral=True)
+		return
+
+	data = load_vc_allow()
+
+	if role.id not in data["roles"]:
+		await interaction.response.send_message("許可されていません", ephemeral=True)
+		return
+
+	data["roles"].remove(role.id)
+	save_vc_allow(data)
+
+	await interaction.response.send_message(f"ロール **{role.name}** を VC操作許可から削除しました")
+
+# /vc_allow_list
+@bot.tree.command(name="vc_allow_list", description="VC操作の許可ユーザー・ロール一覧を表示")
+async def vc_allow_list(interaction: discord.Interaction):
+	if not is_admin_or_dev(interaction):
+		await interaction.response.send_message("権限がありません", ephemeral=True)
+		return
+
+	data = load_vc_allow()
+	guild = interaction.guild
+
+	# ユーザー一覧
+	user_lines = []
+	for uid in data["users"]:
+		member = guild.get_member(uid)
+		if member:
+			user_lines.append(member.mention)
+		else:
+			user_lines.append(f"`{uid}`（不明）")
+
+	# ロール一覧
+	role_lines = []
+	for rid in data["roles"]:
+		role = guild.get_role(rid)
+		if role:
+			role_lines.append(role.mention)
+		else:
+			role_lines.append(f"`{rid}`（不明）")
+
+	user_text = "\n".join(user_lines) if user_lines else "なし"
+	role_text = "\n".join(role_lines) if role_lines else "なし"
+
+	embed = discord.Embed(title="VC操作 許可一覧",color=discord.Color.green())
+	embed.add_field(name="許可ユーザー", value=user_text, inline=False)
+	embed.add_field(name="許可ロール", value=role_text, inline=False)
+
+	await interaction.response.send_message(embed=embed, ephemeral=True)
+
 # /join
 @bot.tree.command(name="join", description="VCに参加")
 async def join(interaction: discord.Interaction):
+	if not can_use_vc(interaction):
+		await interaction.response.send_message("このコマンドを使用する権限がありません", ephemeral=True)
+		return
+
 	if not interaction.user.voice or not interaction.user.voice.channel:
 		await interaction.response.send_message("先にVCへ参加してください")
 		return
-
-	channel = interaction.user.voice.channel
 
 	if interaction.guild.voice_client:
 		await interaction.response.send_message("すでにVCに参加しています")
 		return
 
+	channel = interaction.user.voice.channel
 	await channel.connect()
 
 	# 監視タスク開始（guild_id のみ渡す）
-	bot.loop.create_task(
-		vc_watchdog(interaction.guild.id)
-	)
+	bot.loop.create_task(vc_watchdog(interaction.guild.id))
 
 	await interaction.response.send_message(f"「{channel}」に参加しました")
 	print("/joinが実行されました、VCから参加しました")
@@ -591,8 +597,11 @@ async def join(interaction: discord.Interaction):
 # /leave
 @bot.tree.command(name="leave", description="VCから退出")
 async def leave(interaction: discord.Interaction):
+	if not can_use_vc(interaction):
+		await interaction.response.send_message("このコマンドを使用する権限がありません", ephemeral=True)
+		return
+
 	vc = interaction.guild.voice_client
-	
 	if not vc:
 		await interaction.response.send_message("VCに参加していません")
 		return
