@@ -207,3 +207,7 @@ marimo/_lsp/
 __marimo__/
 .env
 .env
+
+# jsonfiles
+romaji_kana_dict.json
+vc_state.json
