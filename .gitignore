@@ -210,4 +210,6 @@ __marimo__/
 
 # jsonfiles
 romaji_kana_dict.json
+.romaji_kana_dict.json
 vc_state.json
+.vc_state.json
