@@ -9,6 +9,7 @@ from discord.ext import commands
 import sys
 import asyncio
 from datetime import datetime
+from services.logger import logger
 
 # Windows対応
 if sys.platform == "win32":
@@ -53,9 +54,7 @@ class FlandreBot:
         @self.bot.event
         async def on_ready():
             """Bot起動時の処理"""
-            # 現在時刻（ミリ秒なし）
-            no_ms = datetime.now().replace(microsecond=0)
-            print(f"{no_ms} ふらんちゃんが起動したよ💗")
+            logger.info("ふらんちゃんが起動したよ💗")
         
         @self.bot.event
         async def setup_hook():

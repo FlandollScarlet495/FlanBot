@@ -3,7 +3,8 @@
 ## 🔴 Before: 元のコード
 
 ### 構造
-```
+
+```text
 bot.py (500行)
 ├─ グローバル変数
 ├─ 共通関数
@@ -21,11 +22,13 @@ bot.py (500行)
 ### 問題点
 
 #### 1. 構造化されていない
+
 - 500行が1ファイルに詰め込まれている
 - 機能ごとの区切りがない
 - どこに何があるか分からない
 
 #### 2. グローバル変数が多い
+
 ```python
 bot = commands.Bot(...)           # グローバル
 VC_STATE_FILE = "vc_state.json"   # グローバル
@@ -37,6 +40,7 @@ MAX_DELETE = 50                   # グローバル
 ```
 
 #### 3. 責任が混在
+
 ```python
 # 権限チェック
 def is_admin_or_dev(interaction):
@@ -54,9 +58,11 @@ async def give_role(...):
         return
     # ... ロール付与処理
 ```
+
 → 「権限」「ファイル」「コマンド」が同じレベルに並んでいる
 
 #### 4. 変更の影響範囲が不明
+
 - 「権限チェックのロジック変更」→ どこに影響するか分からない
 - 「JSONファイルの保存形式変更」→ 全体を読む必要がある
 
@@ -64,8 +70,9 @@ async def give_role(...):
 
 ## 🟢 After: リファクタリング版
 
-### 構造
-```
+### フォルダ構成
+
+```folder
 flandre_bot_refactored/
 ├── main.py (10行)              # 起動するだけ
 ├── bot.py (80行)               # Bot本体のクラス
@@ -84,6 +91,7 @@ flandre_bot_refactored/
 ### 改善点
 
 #### 1. 機能ごとに分割
+
 ```python
 # 画像コマンドを修正したい
 → commands/images.py を開く
@@ -96,6 +104,7 @@ flandre_bot_refactored/
 ```
 
 #### 2. グローバル変数を削減
+
 ```python
 # config.py で一元管理
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -113,6 +122,7 @@ flandre.run()
 ```
 
 #### 3. 責任を分離
+
 ```python
 # 権限チェック（services/permission.py）
 def is_admin_or_dev(interaction):
@@ -132,6 +142,7 @@ async def give_role(...):
 ```
 
 #### 4. 変更の影響範囲が明確
+
 - 「権限チェック変更」→ `services/permission.py` だけ修正
 - 「JSONファイル形式変更」→ `services/storage.py` だけ修正
 - 「画像コマンド追加」→ `commands/images.py` に追記
@@ -141,7 +152,7 @@ async def give_role(...):
 ## 📊 数字で見る改善
 
 | 項目 | Before | After |
-|------|--------|-------|
+| ---- | ------ | ----- |
 | ファイル数 | 1 | 10 |
 | 最大行数/ファイル | 500行 | 200行 |
 | グローバル変数 | 5個 | 2個 |
@@ -155,7 +166,8 @@ async def give_role(...):
 ### なぜ分けるのか？
 
 #### 例1: バグ修正
-```
+
+```text
 Before:
 「あれ、VCから切断できない...」
 → bot.py の500行を全部読む
@@ -169,7 +181,8 @@ After:
 ```
 
 #### 例2: 機能追加
-```
+
+```text
 Before:
 「新しい画像コマンド追加したい」
 → bot.py のどこに書けばいい？
@@ -183,7 +196,8 @@ After:
 ```
 
 #### 例3: チーム開発
-```
+
+```text
 Before:
 友達A: 「VC機能作るわ」
 友達B: 「画像コマンド作るわ」

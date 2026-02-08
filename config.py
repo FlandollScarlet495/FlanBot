@@ -18,7 +18,10 @@ if not TOKEN:
 if not DEVELOPER_ID:
     raise RuntimeError("DEVELOPER_ID が未設定です")
 
-# ファイルパス
+# データベースパス
+DB_PATH = "bot_data.db"
+
+# ファイルパス（互換性のため旧設定も残す）
 VC_STATE_FILE = "vc_state.json"
 VC_ALLOW_FILE = "vc_allow.json"
 

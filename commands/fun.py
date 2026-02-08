@@ -7,6 +7,7 @@ import discord
 from discord import app_commands
 import random
 import re
+from services.logger import logger
 
 
 def setup_commands(bot):
@@ -17,13 +18,13 @@ def setup_commands(bot):
         try:
             await message.add_reaction("🤔")
             await interaction.response.send_message("🤔 を付けました", ephemeral=True)
-            print("thinking(アプリ)が実行されました、thinkingを付けれました")
+            logger.info(f"thinking コマンド実行: {interaction.user} がメッセージにを付子")
         except discord.Forbidden:
             await interaction.response.send_message("リアクションを付ける権限がありません", ephemeral=True)
-            print("thinking(アプリ)が実行されました、リアクションを付ける権限がありませんでした")
+            logger.warning(f"thinking コマンド: {interaction.user} がリアクション付子権限なし")
         except Exception as e:
             await interaction.response.send_message("エラーが発生しました", ephemeral=True)
-            print("thinking(アプリ)で実行する前にエラーが発生しました")
+            logger.error(f"thinking コマンドエラー: {e}")
     
     @bot.tree.command(name="dice", description="ダイスを振る（例: 1d20, 2d6+3）")
     @app_commands.describe(notation="ダイス表記（例: 1d20, 2d6+3）")
@@ -67,4 +68,4 @@ def setup_commands(bot):
         await interaction.response.send_message(
             f"🎲 `{n}d{sides}{mod_text}`{flag_text}\n出目: {rolls}\n合計: **{total}**"
         )
-        print("/diceが実行されました")
+        logger.info(f"/dice コマンド実行: {interaction.user} (表記: {n}d{sides}{mod_text}, 合計: {total})")
