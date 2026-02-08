@@ -6,6 +6,7 @@
 import discord
 from discord import app_commands
 import os
+from services.logger import logger
 import re
 
 
@@ -15,17 +16,17 @@ def setup_commands(bot):
     @bot.tree.command(name="sonanoka", description="そーなのかー")
     async def sonanoka(interaction: discord.Interaction):
         await interaction.response.send_message(file=discord.File("sonanoka.png"))
-        print("/sonanokaが実行されました")
+        logger.info(f"/sonanoka コマンド実行: {interaction.user}")
     
     @bot.tree.command(name="sonanoda", description="そーなのだー")
     async def sonanoda(interaction: discord.Interaction):
         await interaction.response.send_message(file=discord.File("sonanoda.png"))
-        print("/sonanodaが実行されました")
+        logger.info(f"/sonanoda コマンド実行: {interaction.user}")
     
     @bot.tree.command(name="flandre", description="ふらんちゃん")
     async def flandre(interaction: discord.Interaction):
         await interaction.response.send_message(file=discord.File("flandre.png"))
-        print("/flandreが実行されました")
+        logger.info(f"/flandre コマンド実行: {interaction.user}")
     
     @bot.tree.command(name="stamp1_flan", description="スタンプ画像を表示（例: p0）")
     @app_commands.describe(name="スタンプ名（例: p0 ～ p52）")

@@ -4,6 +4,7 @@
 ユーザーの権限チェックを担当する
 """
 import discord
+from typing import Dict, Any, List
 from config import DEVELOPER_ID
 
 

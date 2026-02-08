@@ -8,6 +8,7 @@ from discord import app_commands
 import asyncio
 from services.permission import can_use_vc, is_admin_or_dev
 from services.storage import vc_allow_storage
+from services.logger import logger
 
 
 def setup_commands(bot):
@@ -29,7 +30,7 @@ def setup_commands(bot):
             # 手動切断フラグチェック
             if guild_id in bot.manual_disconnect:
                 bot.manual_disconnect.remove(guild_id)
-                print("手動切断、監視終了")
+                logger.info("手動切断、監視終了")
                 return
 
             vc = guild.voice_client
@@ -51,9 +52,9 @@ def setup_commands(bot):
             # 再接続試行
             try:
                 await channel.connect()
-                print(f"VC再接続成功: {channel}")
+                logger.info(f"VC再接続成功: {channel}")
             except Exception as e:
-                print(f"VC再接続失敗: {e}")
+                logger.error(f"VC再接続失敗: {e}")
     
     # VC許可管理コマンド
     @bot.tree.command(name="vc_allow_user_add", description="VC操作を許可するユーザーを追加")
@@ -188,7 +189,7 @@ def setup_commands(bot):
         bot.loop.create_task(vc_watchdog(interaction.guild.id))
 
         await interaction.response.send_message(f"「{channel}」に参加しました")
-        print("/joinが実行されました、VCから参加しました")
+        logger.info(f"/join コマンド実行: {interaction.user} が {channel} に参加")
     
     @bot.tree.command(name="leave", description="VCから退出")
     async def leave(interaction: discord.Interaction):
@@ -207,4 +208,4 @@ def setup_commands(bot):
         await vc.disconnect()
 
         await interaction.response.send_message("VCから退出しました")
-        print("/leaveが実行されました、VCから退出しました")
+        logger.info(f"/leave コマンド実行: {interaction.user} が VCから退出")

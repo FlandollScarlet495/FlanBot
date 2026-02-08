@@ -6,6 +6,7 @@
 import discord
 from discord import app_commands
 from services.permission import is_admin_or_dev
+from services.logger import logger
 from config import MAX_DELETE
 
 
@@ -111,7 +112,7 @@ def setup_commands(bot):
         deleted = await interaction.channel.purge(limit=count, check=check)
 
         await interaction.followup.send(f"{len(deleted)} 件のメッセージを削除しました")
-        print("/deleteが実行されました")
+        logger.info(f"/delete コマンド実行: {interaction.user} ({len(deleted)}件削除)")
     
     # admin_del用のViewクラス
     class AdminDeleteConfirm(discord.ui.View):
@@ -180,4 +181,4 @@ def setup_commands(bot):
             view=view, 
             ephemeral=True
         )
-        print("/admin_delが実行されました")
+        logger.info(f"/admin_del コマンド実行: {interaction.user} ({count}件削除予定)")

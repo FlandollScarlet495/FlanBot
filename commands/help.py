@@ -5,6 +5,7 @@
 """
 import discord
 from discord import app_commands
+from services.logger import logger
 
 
 def setup_commands(bot):
@@ -33,19 +34,19 @@ def setup_commands(bot):
         embed.add_field(name="/leave", value="VC退出", inline=False)
 
         await interaction.response.send_message(embed=embed)
-        print("/helpが実行されました")
+        logger.info(f"/help コマンド実行: {interaction.user}")
     
     @bot.tree.command(name="ping", description="動作速度確認")
     async def ping(interaction: discord.Interaction):
         await interaction.response.send_message(f"🏓 {round(bot.latency * 1000)}ms")
-        print("/pingが実行されました")
+        logger.info(f"/ping コマンド実行: {interaction.user}")
     
     @bot.tree.command(name="about", description="動作確認")
     async def about(interaction: discord.Interaction):
         await interaction.response.send_message("flandre, ふらんちゃん")
-        print("/aboutが実行されました")
+        logger.info(f"/about コマンド実行: {interaction.user}")
     
     @bot.tree.command(name="test", description="テスト")
     async def test(interaction: discord.Interaction):
         await interaction.response.send_message("test")
-        print("/testが実行されました")
+        logger.info(f"/test コマンド実行: {interaction.user}")
