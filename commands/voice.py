@@ -100,7 +100,7 @@ def setup_commands(bot):
             await interaction.response.send_message("権限がありません", ephemeral=True)
             return
 
-        data = vc_allow_storage.load()
+        data = vc_allow_storage.load(interaction.guild.id)
 
         if role.id in data["roles"]:
             await interaction.response.send_message("すでに許可されています", ephemeral=True)

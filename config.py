@@ -22,6 +22,7 @@ if not DEVELOPER_ID:
 DB_PATH = "bot_data.db"
 
 # ファイルパス（互換性のため旧設定も残す）
+# 将来的に削除予定
 VC_STATE_FILE = "vc_state.json"
 VC_ALLOW_FILE = "vc_allow.json"
 

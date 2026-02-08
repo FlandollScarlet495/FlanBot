@@ -4,200 +4,158 @@
 SQLiteデータベースの読み書きを担当する
 """
 import sqlite3
-from typing import Dict, Any, List
+from typing import Dict, Any
 from config import DB_PATH
 from .logger import logger
 
 
 class SQLiteStorage:
-    """SQLiteデータベースを管理するクラス"""
-    
+    """VC操作許可用 SQLite ストレージ"""
+
     def __init__(self, db_path: str):
-        """
-        初期化
-        
-        Args:
-            db_path: SQLiteデータベースのパス
-        """
         self.db_path = db_path
         self._init_db()
-    
+
+    def _get_conn(self):
+        return sqlite3.connect(self.db_path)
+
     def _init_db(self):
-        """データベースを初期化"""
+        """データベース初期化"""
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with self._get_conn() as conn:
                 cursor = conn.cursor()
-                
-                # VC許可テーブル
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS vc_allows (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        guild_id INTEGER NOT NULL,
                         type TEXT NOT NULL,
                         target_id INTEGER NOT NULL,
-                        user_id INTEGER NOT NULL,
-                        UNIQUE(type, target_id)
+                        PRIMARY KEY (guild_id, type, target_id)
                     )
                 """)
-                
                 conn.commit()
         except sqlite3.Error as e:
-            logger.error(f"データベース初期化エラー ({self.db_path}): {e}")
-    
-    def load(self) -> Dict[str, Any]:
+            logger.error(f"DB初期化エラー: {e}")
+            raise
+
+    # --------------------
+    # 互換用 API（既存コード対応）
+    # --------------------
+
+    def load(self, guild_id: int) -> Dict[str, Any]:
         """
-        VC許可データを読み込む（互換性のため）
-        
+        VC許可データを読み込む
+
         Returns:
-            dict: {"users": [...], "roles": [...]} 形式
+            {"users": [...], "roles": [...]}
         """
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with self._get_conn() as conn:
                 cursor = conn.cursor()
-                
-                cursor.execute("SELECT target_id FROM vc_allows WHERE type = 'user'")
+
+                cursor.execute(
+                    "SELECT target_id FROM vc_allows WHERE guild_id = ? AND type = 'user'",
+                    (guild_id,)
+                )
                 users = [row[0] for row in cursor.fetchall()]
-                
-                cursor.execute("SELECT target_id FROM vc_allows WHERE type = 'role'")
+
+                cursor.execute(
+                    "SELECT target_id FROM vc_allows WHERE guild_id = ? AND type = 'role'",
+                    (guild_id,)
+                )
                 roles = [row[0] for row in cursor.fetchall()]
-                
+
                 return {"users": users, "roles": roles}
         except sqlite3.Error as e:
-            logger.error(f"データ読み込みエラー ({self.db_path}): {e}")
+            logger.error(f"DB読み込みエラー: {e}")
             return {"users": [], "roles": []}
-    
-    def save(self, data: Dict[str, Any]) -> bool:
+
+    def save(self, guild_id: int, data: Dict[str, Any]) -> bool:
         """
-        VC許可データを保存（互換性のため）
-        
-        Args:
-            data: {"users": [...], "roles": [...]} 形式
-            
-        Returns:
-            bool: 保存成功ならTrue
+        互換用一括保存（基本的に使用非推奨）
         """
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with self._get_conn() as conn:
                 cursor = conn.cursor()
-                
-                # 既存データをクリア
-                cursor.execute("DELETE FROM vc_allows")
-                
-                # ユーザーを追加
-                for user_id in data.get("users", []):
+
+                cursor.execute(
+                    "DELETE FROM vc_allows WHERE guild_id = ?",
+                    (guild_id,)
+                )
+
+                for uid in data.get("users", []):
                     cursor.execute(
-                        "INSERT INTO vc_allows (type, target_id, user_id) VALUES (?, ?, ?)",
-                        ("user", user_id, user_id)
+                        "INSERT INTO vc_allows VALUES (?, 'user', ?)",
+                        (guild_id, uid)
                     )
-                
-                # ロールを追加
-                for role_id in data.get("roles", []):
+
+                for rid in data.get("roles", []):
                     cursor.execute(
-                        "INSERT INTO vc_allows (type, target_id, user_id) VALUES (?, ?, ?)",
-                        ("role", role_id, 0)
+                        "INSERT INTO vc_allows VALUES (?, 'role', ?)",
+                        (guild_id, rid)
                     )
-                
+
                 conn.commit()
             return True
         except sqlite3.Error as e:
-            logger.error(f"データ保存エラー ({self.db_path}): {e}")
+            logger.error(f"DB保存エラー: {e}")
             return False
-    
-    def add_user(self, user_id: int) -> bool:
-        """
-        ユーザー許可を追加
-        
-        Args:
-            user_id: ユーザーID
-            
-        Returns:
-            bool: 成功ならTrue
-        """
+
+    # --------------------
+    # 本命 API
+    # --------------------
+
+    def add_user(self, guild_id: int, user_id: int) -> bool:
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "INSERT INTO vc_allows (type, target_id, user_id) VALUES (?, ?, ?)",
-                    ("user", user_id, user_id)
+            with self._get_conn() as conn:
+                conn.execute(
+                    "INSERT INTO vc_allows VALUES (?, 'user', ?)",
+                    (guild_id, user_id)
                 )
-                conn.commit()
             return True
         except sqlite3.IntegrityError:
             return False
         except sqlite3.Error as e:
             logger.error(f"ユーザー追加エラー: {e}")
             return False
-    
-    def remove_user(self, user_id: int) -> bool:
-        """
-        ユーザー許可を削除
-        
-        Args:
-            user_id: ユーザーID
-            
-        Returns:
-            bool: 成功ならTrue
-        """
+
+    def remove_user(self, guild_id: int, user_id: int) -> bool:
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "DELETE FROM vc_allows WHERE type = 'user' AND target_id = ?",
-                    (user_id,)
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    "DELETE FROM vc_allows WHERE guild_id = ? AND type = 'user' AND target_id = ?",
+                    (guild_id, user_id)
                 )
-                conn.commit()
             return cursor.rowcount > 0
         except sqlite3.Error as e:
-            logger.error(f"エラー: {e}")
+            logger.error(f"ユーザー削除エラー: {e}")
             return False
-    
-    def add_role(self, role_id: int) -> bool:
-        """
-        ロール許可を追加
-        
-        Args:
-            role_id: ロールID
-            
-        Returns:
-            bool: 成功ならTrue
-        """
+
+    def add_role(self, guild_id: int, role_id: int) -> bool:
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "INSERT INTO vc_allows (type, target_id, user_id) VALUES (?, ?, ?)",
-                    ("role", role_id, 0)
+            with self._get_conn() as conn:
+                conn.execute(
+                    "INSERT INTO vc_allows VALUES (?, 'role', ?)",
+                    (guild_id, role_id)
                 )
-                conn.commit()
             return True
         except sqlite3.IntegrityError:
             return False
         except sqlite3.Error as e:
-            logger.error(f"エラー: {e}")
+            logger.error(f"ロール追加エラー: {e}")
             return False
-    
-    def remove_role(self, role_id: int) -> bool:
-        """
-        ロール許可を削除
-        
-        Args:
-            role_id: ロールID
-            
-        Returns:
-            bool: 成功ならTrue
-        """
+
+    def remove_role(self, guild_id: int, role_id: int) -> bool:
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "DELETE FROM vc_allows WHERE type = 'role' AND target_id = ?",
-                    (role_id,)
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    "DELETE FROM vc_allows WHERE guild_id = ? AND type = 'role' AND target_id = ?",
+                    (guild_id, role_id)
                 )
-                conn.commit()
             return cursor.rowcount > 0
         except sqlite3.Error as e:
-            logger.error(f"エラー: {e}")
+            logger.error(f"ロール削除エラー: {e}")
             return False
 
 
-# よく使うストレージのインスタンスを作成
+# グローバルインスタンス
 vc_allow_storage = SQLiteStorage(DB_PATH)
