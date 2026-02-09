@@ -17,21 +17,72 @@ def setup_commands(bot):
             title="ふらんちゃんbot コマンド一覧",
             color=discord.Color.blue()
         )
-        embed.add_field(name="thinking(アプリ)", value="返信先に🤔リアクション", inline=False)
-        embed.add_field(name="/give_role", value="指定したユーザーにロールを付与", inline=False)
-        embed.add_field(name="/remove_role", value="指定したユーザーからロールを剥奪", inline=False)
+        
+        # 画像・お遊びコマンド
+        embed.add_field(name="━━ 画像・お遊び ━━", value="", inline=False)
         embed.add_field(name="/sonanoka", value="そーなのかー画像表示", inline=False)
         embed.add_field(name="/sonanoda", value="そーなのだー画像表示", inline=False)
         embed.add_field(name="/flandre", value="ふらんちゃん画像表示", inline=False)
         embed.add_field(name="/stamp1", value="ふらんちゃんスタンプ表示", inline=False)
         embed.add_field(name="/dice", value="サイコロを振る", inline=False)
-        embed.add_field(name="/delete", value="自分＋bot削除", inline=False)
-        embed.add_field(name="/admin_del", value="管理者専用削除", inline=False)
+        embed.add_field(name="/thinking", value="返信先に🤔リアクション", inline=False)
+        
+        # ロール管理
+        embed.add_field(name="━━ ロール管理 ━━", value="", inline=False)
+        embed.add_field(name="/give_role ユーザー名", value="指定したユーザーにロールを付与", inline=False)
+        embed.add_field(name="/remove_role ユーザー名", value="指定したユーザーからロールを剥奪", inline=False)
+        
+        # ボイスチャット・TTS
+        embed.add_field(name="━━ ボイスチャット・TTS ━━", value="", inline=False)
+        embed.add_field(
+            name="/join", 
+            value="VCに参加して TTS 機能を有効化\n例: ボイスチャットに接続し、テキストメッセージを自動で読み上げします", 
+            inline=False
+        )
+        embed.add_field(
+            name="/leave", 
+            value="VCから退出", 
+            inline=False
+        )
+        embed.add_field(
+            name="/tts_on / /tts_off", 
+            value="TTS読み上げのON/OFF切り替え（VCには参加したまま）", 
+            inline=False
+        )
+        embed.add_field(
+            name="/skip", 
+            value="現在再生中・待機中のTTS読み上げをスキップ", 
+            inline=False
+        )
+        
+        # TTS辞書
+        embed.add_field(name="━━ TTS辞書管理（管理者専用）━━", value="", inline=False)
+        embed.add_field(
+            name="/tts_dict_add 単語 読み方", 
+            value="TTS辞書に単語を登録\n例: `/tts_dict_add 擬音語 ぎおんご`\n→ 「擬音語」を「ぎおんご」と読み上げるよう登録", 
+            inline=False
+        )
+        embed.add_field(
+            name="/tts_dict_remove 単語", 
+            value="TTS辞書から単語を削除\n例: `/tts_dict_remove 擬音語`", 
+            inline=False
+        )
+        embed.add_field(
+            name="/tts_dict_list", 
+            value="登録されている辞書一覧を表示（番号付き）", 
+            inline=False
+        )
+        
+        # 削除・管理
+        embed.add_field(name="━━ メッセージ削除 ━━", value="", inline=False)
+        embed.add_field(name="/delete", value="自分 ＋ bot のメッセージを削除", inline=False)
+        embed.add_field(name="/admin_del", value="管理者専用削除（権限チェック付き）", inline=False)
+        
+        # 動作確認
+        embed.add_field(name="━━ 動作確認 ━━", value="", inline=False)
+        embed.add_field(name="/ping", value="動作速度確認（応答時間を表示）", inline=False)
+        embed.add_field(name="/about", value="ふらんちゃん プロフィール表示", inline=False)
         embed.add_field(name="/test", value="テスト", inline=False)
-        embed.add_field(name="/ping", value="動作速度確認", inline=False)
-        embed.add_field(name="/about", value="動作確認", inline=False)
-        embed.add_field(name="/join", value="VC参加", inline=False)
-        embed.add_field(name="/leave", value="VC退出", inline=False)
 
         await interaction.response.send_message(embed=embed)
         logger.info(f"/help コマンド実行: {interaction.user}")
