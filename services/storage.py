@@ -24,18 +24,57 @@ class SQLiteStorage:
         try:
             with self._get_conn() as conn:
                 cursor = conn.cursor()
+
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS vc_allows (
                         guild_id INTEGER NOT NULL,
                         type TEXT NOT NULL,
                         target_id INTEGER NOT NULL,
                         PRIMARY KEY (guild_id, type, target_id)
-                    )
+                    );
                 """)
+
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS tts_settings (
+                        guild_id INTEGER PRIMARY KEY,
+                        enabled INTEGER NOT NULL DEFAULT 1,
+                        speaker_id INTEGER NOT NULL DEFAULT 1
+                    );
+                """)
+
                 conn.commit()
-        except sqlite3.Error as e:
-            logger.error(f"DB初期化エラー: {e}")
+        except sqlite3.Error:
+            logger.exception("DB初期化エラー")
             raise
+
+    def set_tts_enabled(self, guild_id: int, enabled: bool) -> None:
+      with sqlite3.connect(self.db_path) as conn:
+          conn.execute("""
+              INSERT INTO tts_settings (guild_id, enabled, speaker_id)
+              VALUES (?, ?, 1)
+              ON CONFLICT(guild_id)
+              DO UPDATE SET enabled = excluded.enabled
+          """, (guild_id, int(enabled)))
+          conn.commit()
+
+    def get_tts_settings(self, guild_id: int) -> dict:
+      try:
+        with self._get_conn() as conn:
+          cur = conn.execute(
+            "SELECT enabled, speaker_id FROM tts_settings WHERE guild_id = ?",
+            (guild_id,)
+          )
+          row = cur.fetchone()
+          if row:
+            return {"enabled": bool(row[0]), "speaker": row[1]}
+
+          conn.execute(
+            "INSERT INTO tts_settings VALUES (?, 1, 1)",
+            (guild_id,)
+          )
+          return {"enabled": True, "speaker": 1}
+      except Exception:
+        return {"enabled": True, "speaker": 1}
 
     # --------------------
     # 互換用 API（既存コード対応）

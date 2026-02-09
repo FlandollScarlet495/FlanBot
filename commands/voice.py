@@ -27,19 +27,15 @@ def setup_commands(bot):
             if not guild:
                 return
 
-            # 手動切断フラグチェック
             if guild_id in bot.manual_disconnect:
                 bot.manual_disconnect.remove(guild_id)
                 logger.info("手動切断、監視終了")
                 return
 
             vc = guild.voice_client
-
-            # 接続中なら何もしない
             if vc and vc.is_connected():
                 continue
 
-            # 再接続先を探す
             channel = None
             for member in guild.members:
                 if member.voice and member.voice.channel:
@@ -49,129 +45,149 @@ def setup_commands(bot):
             if not channel:
                 continue
 
-            # 再接続試行
             try:
                 await channel.connect()
                 logger.info(f"VC再接続成功: {channel}")
             except Exception as e:
                 logger.error(f"VC再接続失敗: {e}")
     
-    # VC許可管理コマンド
-    @bot.tree.command(name="vc_allow_user_add", description="VC操作を許可するユーザーを追加")
-    @app_commands.describe(member="許可するユーザー")
+    # =====================
+    # VC許可管理（管理者）
+    # =====================
+
+    @bot.tree.command(name="vc_allow_user_add")
     async def vc_allow_user_add(interaction: discord.Interaction, member: discord.Member):
         if not is_admin_or_dev(interaction):
             await interaction.response.send_message("権限がありません", ephemeral=True)
             return
 
-        data = vc_allow_storage.load()
+        await interaction.response.defer(ephemeral=True)
+
+        gid = interaction.guild.id
+        data = vc_allow_storage.load(gid)
 
         if member.id in data["users"]:
-            await interaction.response.send_message("すでに許可されています", ephemeral=True)
+            await interaction.followup.send("すでに許可されています", ephemeral=True)
             return
 
         data["users"].append(member.id)
-        vc_allow_storage.save(data)
+        vc_allow_storage.save(gid, data)
 
-        await interaction.response.send_message(f"{member.mention} を VC操作許可ユーザーに追加しました")
-    
-    @bot.tree.command(name="vc_allow_user_remove", description="VC操作のユーザー許可を削除")
-    @app_commands.describe(member="削除するユーザー")
+        await interaction.followup.send(
+            f"{member.mention} を VC操作許可ユーザーに追加しました",
+            ephemeral=True
+        )
+
+    @bot.tree.command(name="vc_allow_user_remove")
     async def vc_allow_user_remove(interaction: discord.Interaction, member: discord.Member):
         if not is_admin_or_dev(interaction):
             await interaction.response.send_message("権限がありません", ephemeral=True)
             return
 
-        data = vc_allow_storage.load()
+        await interaction.response.defer(ephemeral=True)
+
+        gid = interaction.guild.id
+        data = vc_allow_storage.load(gid)
 
         if member.id not in data["users"]:
-            await interaction.response.send_message("許可されていません", ephemeral=True)
+            await interaction.followup.send("許可されていません", ephemeral=True)
             return
 
         data["users"].remove(member.id)
-        vc_allow_storage.save(data)
+        vc_allow_storage.save(gid, data)
 
-        await interaction.response.send_message(f"{member.mention} を VC操作許可から削除しました")
-    
-    @bot.tree.command(name="vc_allow_role_add", description="VC操作を許可するロールを追加")
-    @app_commands.describe(role="許可するロール")
+        await interaction.followup.send(
+            f"{member.mention} を VC操作許可から削除しました",
+            ephemeral=True
+        )
+
+    @bot.tree.command(name="vc_allow_role_add")
     async def vc_allow_role_add(interaction: discord.Interaction, role: discord.Role):
         if not is_admin_or_dev(interaction):
             await interaction.response.send_message("権限がありません", ephemeral=True)
             return
 
-        data = vc_allow_storage.load(interaction.guild.id)
+        await interaction.response.defer(ephemeral=True)
+
+        gid = interaction.guild.id
+        data = vc_allow_storage.load(gid)
 
         if role.id in data["roles"]:
-            await interaction.response.send_message("すでに許可されています", ephemeral=True)
+            await interaction.followup.send("すでに許可されています", ephemeral=True)
             return
 
         data["roles"].append(role.id)
-        vc_allow_storage.save(data)
+        vc_allow_storage.save(gid, data)
 
-        await interaction.response.send_message(f"ロール **{role.name}** を VC操作許可に追加しました")
-    
-    @bot.tree.command(name="vc_allow_role_remove", description="VC操作のロール許可を削除")
-    @app_commands.describe(role="削除するロール")
+        await interaction.followup.send(
+            f"ロール **{role.name}** を VC操作許可に追加しました",
+            ephemeral=True
+        )
+
+    @bot.tree.command(name="vc_allow_role_remove")
     async def vc_allow_role_remove(interaction: discord.Interaction, role: discord.Role):
         if not is_admin_or_dev(interaction):
             await interaction.response.send_message("権限がありません", ephemeral=True)
             return
 
-        data = vc_allow_storage.load()
+        await interaction.response.defer(ephemeral=True)
+
+        gid = interaction.guild.id
+        data = vc_allow_storage.load(gid)
 
         if role.id not in data["roles"]:
-            await interaction.response.send_message("許可されていません", ephemeral=True)
+            await interaction.followup.send("許可されていません", ephemeral=True)
             return
 
         data["roles"].remove(role.id)
-        vc_allow_storage.save(data)
+        vc_allow_storage.save(gid, data)
 
-        await interaction.response.send_message(f"ロール **{role.name}** を VC操作許可から削除しました")
-    
-    @bot.tree.command(name="vc_allow_list", description="VC操作の許可ユーザー・ロール一覧を表示")
+        await interaction.followup.send(
+            f"ロール **{role.name}** を VC操作許可から削除しました",
+            ephemeral=True
+        )
+
+    @bot.tree.command(name="vc_allow_list")
     async def vc_allow_list(interaction: discord.Interaction):
         if not is_admin_or_dev(interaction):
             await interaction.response.send_message("権限がありません", ephemeral=True)
             return
 
-        data = vc_allow_storage.load()
+        await interaction.response.defer(ephemeral=True)
+
+        gid = interaction.guild.id
+        data = vc_allow_storage.load(gid)
         guild = interaction.guild
 
-        # ユーザー一覧
-        user_lines = []
-        for uid in data["users"]:
-            member = guild.get_member(uid)
-            if member:
-                user_lines.append(member.mention)
-            else:
-                user_lines.append(f"`{uid}`（不明）")
+        users = [
+            guild.get_member(uid).mention
+            if guild.get_member(uid) else f"`{uid}`"
+            for uid in data["users"]
+        ] or ["なし"]
 
-        # ロール一覧
-        role_lines = []
-        for rid in data["roles"]:
-            role = guild.get_role(rid)
-            if role:
-                role_lines.append(role.mention)
-            else:
-                role_lines.append(f"`{rid}`（不明）")
+        roles = [
+            guild.get_role(rid).mention
+            if guild.get_role(rid) else f"`{rid}`"
+            for rid in data["roles"]
+        ] or ["なし"]
 
-        user_text = "\n".join(user_lines) if user_lines else "なし"
-        role_text = "\n".join(role_lines) if role_lines else "なし"
+        embed = discord.Embed(title="VC操作 許可一覧")
+        embed.add_field(name="ユーザー", value="\n".join(users), inline=False)
+        embed.add_field(name="ロール", value="\n".join(roles), inline=False)
 
-        embed = discord.Embed(title="VC操作 許可一覧", color=discord.Color.green())
-        embed.add_field(name="許可ユーザー", value=user_text, inline=False)
-        embed.add_field(name="許可ロール", value=role_text, inline=False)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-    
-    # VC参加・退出コマンド
-    @bot.tree.command(name="join", description="VCに参加")
+    # =====================
+    # VC参加 / 退出
+    # =====================
+
+    @bot.tree.command(name="join")
     async def join(interaction: discord.Interaction):
-        allow_data = vc_allow_storage.load()
-        
+        gid = interaction.guild.id
+        allow_data = vc_allow_storage.load(gid)
+
         if not can_use_vc(interaction, allow_data):
-            await interaction.response.send_message("このコマンドを使用する権限がありません", ephemeral=True)
+            await interaction.response.send_message("権限がありません", ephemeral=True)
             return
 
         if not interaction.user.voice or not interaction.user.voice.channel:
@@ -185,27 +201,35 @@ def setup_commands(bot):
         channel = interaction.user.voice.channel
         await channel.connect()
 
-        # 監視タスク開始
-        bot.loop.create_task(vc_watchdog(interaction.guild.id))
+        bot.loop.create_task(vc_watchdog(gid))
+        vc_allow_storage.set_tts_enabled(gid, True)
 
         await interaction.response.send_message(f"「{channel}」に参加しました")
-        logger.info(f"/join コマンド実行: {interaction.user} が {channel} に参加")
-    
-    @bot.tree.command(name="leave", description="VCから退出")
+        logger.info(f"/join: {interaction.user} joined {channel}")
+
+    @bot.tree.command(name="leave")
     async def leave(interaction: discord.Interaction):
-        allow_data = vc_allow_storage.load()
-        
+        gid = interaction.guild.id
+        allow_data = vc_allow_storage.load(gid)
+
         if not can_use_vc(interaction, allow_data):
-            await interaction.response.send_message("このコマンドを使用する権限がありません", ephemeral=True)
+            await interaction.response.send_message("権限がありません", ephemeral=True)
             return
 
         vc = interaction.guild.voice_client
         if not vc:
             await interaction.response.send_message("VCに参加していません")
             return
-        
-        bot.manual_disconnect.add(interaction.guild.id)
+
+        vc_allow_storage.set_tts_enabled(gid, False)
+
+        if gid in bot.tts_tasks:
+            bot.tts_tasks[gid].cancel()
+            del bot.tts_tasks[gid]
+            del bot.tts_queues[gid]
+
+        bot.manual_disconnect.add(gid)
         await vc.disconnect()
 
         await interaction.response.send_message("VCから退出しました")
-        logger.info(f"/leave コマンド実行: {interaction.user} が VCから退出")
+        logger.info(f"/leave: {interaction.user} left VC")
