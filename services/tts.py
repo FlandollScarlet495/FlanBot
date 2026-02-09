@@ -96,6 +96,12 @@ async def tts_worker(bot, guild_id: int):
     guild = bot.get_guild(guild_id)
     queue = bot.tts_queues[guild_id]
     playback_queue = asyncio.Queue()
+    # playback_queue を bot 側で参照できるように保存（/skip で消去できるように）
+    try:
+        bot.playback_queues[guild_id] = playback_queue
+    except Exception:
+        # bot が期待どおりの属性を持たない場合は無視
+        pass
 
     async def synthesis_task():
         """テキストを合成してバッファを再生キューに追加"""
@@ -170,3 +176,10 @@ async def tts_worker(bot, guild_id: int):
         for task in tasks:
             task.cancel()
         raise
+    finally:
+        # 終了時に playback_queue の参照を削除
+        try:
+            if guild_id in bot.playback_queues:
+                del bot.playback_queues[guild_id]
+        except Exception:
+            pass

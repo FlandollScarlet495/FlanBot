@@ -81,6 +81,19 @@ def setup_commands(bot):
             return
 
         bot.skip_flags[gid] = True
+        # 合成済み再生キューがあれば消去して、再生中の音声も停止する
+        try:
+            if gid in bot.playback_queues:
+                pq = bot.playback_queues[gid]
+                try:
+                    while not pq.empty():
+                        pq.get_nowait()
+                        pq.task_done()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         await interaction.response.send_message("TTS再生をスキップしました", ephemeral=True)
         logger.info(f"/skip: {interaction.user} skipped TTS in guild {gid}")
 
