@@ -12,6 +12,5 @@ def main():
     flandre = FlandreBot(TOKEN)
     flandre.run()
 
-
 if __name__ == "__main__":
     main()
