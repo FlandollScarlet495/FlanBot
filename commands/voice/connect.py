@@ -94,7 +94,7 @@ def setup_commands(bot):
         except Exception:
             pass
 
-        await interaction.response.send_message("TTS再生をスキップしました", ephemeral=True)
+        await interaction.response.send_message("TTS再生をスキップしました")
         logger.info(f"/skip: {interaction.user} skipped TTS in guild {gid}")
 
     @bot.tree.command(name="tts_on", description="TTS読み込みを有効化")
@@ -119,7 +119,7 @@ def setup_commands(bot):
                 tts_worker(bot, gid)
             )
 
-        await interaction.response.send_message("TTS読み込みを有効化しました", ephemeral=True)
+        await interaction.response.send_message("TTS読み込みを有効化しました")
         logger.info(f"/tts_on: {interaction.user} enabled TTS in guild {gid}")
 
     @bot.tree.command(name="tts_off", description="TTS読み込みを無効化")
@@ -144,5 +144,5 @@ def setup_commands(bot):
                 del bot.tts_queues[gid]
             del bot.tts_tasks[gid]
 
-        await interaction.response.send_message("TTS読み込みを無効化しました", ephemeral=True)
+        await interaction.response.send_message("TTS読み込みを無効化しました")
         logger.info(f"/tts_off: {interaction.user} disabled TTS in guild {gid}")

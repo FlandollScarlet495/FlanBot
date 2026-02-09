@@ -9,23 +9,41 @@ import os
 from services.logger import logger
 import re
 
+# 画像ファイルの基準ディレクトリ（commands/ ディレクトリ）
+IMAGE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 def setup_commands(bot):
     """コマンドをbotに登録する"""
     
     @bot.tree.command(name="sonanoka", description="そーなのかー")
     async def sonanoka(interaction: discord.Interaction):
-        await interaction.response.send_message(file=discord.File("sonanoka.png"))
+        file_path = os.path.join(IMAGE_DIR, "sonanoka.png")
+        if not os.path.exists(file_path):
+            await interaction.response.send_message(f"ファイルが見つかりません: {file_path}", ephemeral=True)
+            logger.warning(f"sonanoka.png が見つかりません: {file_path}")
+            return
+        await interaction.response.send_message(file=discord.File(file_path))
         logger.info(f"/sonanoka コマンド実行: {interaction.user}")
     
     @bot.tree.command(name="sonanoda", description="そーなのだー")
     async def sonanoda(interaction: discord.Interaction):
-        await interaction.response.send_message(file=discord.File("sonanoda.png"))
+        file_path = os.path.join(IMAGE_DIR, "sonanoda.png")
+        if not os.path.exists(file_path):
+            await interaction.response.send_message(f"ファイルが見つかりません: {file_path}", ephemeral=True)
+            logger.warning(f"sonanoda.png が見つかりません: {file_path}")
+            return
+        await interaction.response.send_message(file=discord.File(file_path))
         logger.info(f"/sonanoda コマンド実行: {interaction.user}")
     
     @bot.tree.command(name="flandre", description="ふらんちゃん")
     async def flandre(interaction: discord.Interaction):
-        await interaction.response.send_message(file=discord.File("flandre.png"))
+        file_path = os.path.join(IMAGE_DIR, "flandre.png")
+        if not os.path.exists(file_path):
+            await interaction.response.send_message(f"ファイルが見つかりません: {file_path}", ephemeral=True)
+            logger.warning(f"flandre.png が見つかりません: {file_path}")
+            return
+        await interaction.response.send_message(file=discord.File(file_path))
         logger.info(f"/flandre コマンド実行: {interaction.user}")
     
     @bot.tree.command(name="stamp1_flan", description="スタンプ画像を表示（例: p0）")
@@ -48,10 +66,11 @@ def setup_commands(bot):
             await interaction.response.send_message("番号は 0〜52 の範囲で指定してください", ephemeral=True)
             return
 
-        filename = f"stamp1/p{n}.png"
+        filename = os.path.join(IMAGE_DIR, "stamp1", f"p{n}.png")
 
         if not os.path.exists(filename):
-            await interaction.response.send_message("画像ファイルが見つかりません", ephemeral=True)
+            await interaction.response.send_message(f"画像ファイルが見つかりません: {filename}", ephemeral=True)
+            logger.warning(f"stamp1 ファイルが見つかりません: {filename}")
             return
 
         await interaction.response.send_message(file=discord.File(filename))
