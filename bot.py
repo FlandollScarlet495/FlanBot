@@ -10,7 +10,7 @@ import sys
 import asyncio
 from datetime import datetime
 from services.logger import logger
-from services.storage import vc_allow_storage
+from services.storage import vc_allow_storage, tts_settings_storage
 from services.tts import sanitize_text, tts_worker
 
 # Windows対応
@@ -52,6 +52,8 @@ class FlandreBot:
 
         self.bot.tts_queues = {}
         self.bot.tts_tasks = {}
+        self.bot.manual_disconnect = set()
+        self.bot.skip_flags = {}  # ギルドごとのスキップフラグ
 
     def _setup_events(self):
         """イベントハンドラの登録"""
@@ -80,15 +82,33 @@ class FlandreBot:
           if message.author.voice.channel != vc.channel:
               return
 
-          settings = vc_allow_storage.get_tts_settings(message.guild.id)
+          # ボイスチャンネルと同じカテゴリーのテキストチャンネルか確認
+          # カテゴリーがない場合（直下のチャンネル）も許容
+          if message.channel.category and vc.channel.category:
+              if message.channel.category != vc.channel.category:
+                  return
+          elif message.channel.category or vc.channel.category:
+              # 一方がカテゴリーを持っていて、もう一方が持っていない場合はスキップ
+              return
+
+          gid = message.guild.id
+          settings = tts_settings_storage.get(gid)
           if not settings["enabled"]:
             return
 
-          text = sanitize_text(message.content)
-          if not text:
-            return
+          # リプライ情報を取得
+          reply_prefix = ""
+          if message.reference:
+              try:
+                  replied_msg = await message.channel.fetch_message(message.reference.message_id)
+                  if replied_msg.author:
+                      reply_prefix = f"{replied_msg.author.display_name}さんへのリプライ。"
+              except Exception as e:
+                  logger.debug(f"リプライ情報取得エラー: {e}")
 
-          gid = message.guild.id
+          text = reply_prefix + sanitize_text(message.content, message.guild)
+          if not text.replace(reply_prefix, ""):  # リプライプレフィックス以外が空の場合
+            return
 
           if gid not in self.bot.tts_queues:
             self.bot.tts_queues[gid] = asyncio.Queue()
@@ -97,6 +117,7 @@ class FlandreBot:
             )
 
           await self.bot.tts_queues[gid].put((text, settings["speaker"]))
+          logger.debug(f"[Guild {gid}] TTS キューに追加: {text[:20]}...")
 
     def _setup_commands(self):
         """各モジュールのコマンドを登録"""
