@@ -208,8 +208,9 @@ __marimo__/
 .env
 .env
 
-# jsonfiles
+# datafiles
 romaji_kana_dict.json
 .romaji_kana_dict.json
 vc_state.json
 .vc_state.json
+.bot_data.db

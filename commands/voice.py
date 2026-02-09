@@ -44,6 +44,10 @@ def setup_commands(bot):
 
             if not channel:
                 continue
+            
+            settings = vc_allow_storage.get_tts_settings(guild_id)
+            if not settings["enabled"]:
+                return
 
             try:
                 await channel.connect()
@@ -181,7 +185,7 @@ def setup_commands(bot):
     # VC参加 / 退出
     # =====================
 
-    @bot.tree.command(name="join")
+    @bot.tree.command(name="join", description="VC参加")
     async def join(interaction: discord.Interaction):
         gid = interaction.guild.id
         allow_data = vc_allow_storage.load(gid)
@@ -207,7 +211,7 @@ def setup_commands(bot):
         await interaction.response.send_message(f"「{channel}」に参加しました")
         logger.info(f"/join: {interaction.user} joined {channel}")
 
-    @bot.tree.command(name="leave")
+    @bot.tree.command(name="leave", description="VC退出")
     async def leave(interaction: discord.Interaction):
         gid = interaction.guild.id
         allow_data = vc_allow_storage.load(gid)
