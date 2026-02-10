@@ -209,4 +209,4 @@ __marimo__/
 .env
 
 # datafiles
-.bot_data.db
+bot_data.db
