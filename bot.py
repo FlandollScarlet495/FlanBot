@@ -81,12 +81,15 @@ class FlandreBot:
             if not vc or not vc.is_connected():
                 return
 
-            # テキストチャンネルがボイスチャンネルと同じカテゴリに属していることを確認
-            if message.channel.category and vc.channel.category:
-                if message.channel.category != vc.channel.category:
-                    return
-            elif message.channel.category or vc.channel.category:
-                # 一方だけカテゴリを持つ場合は許可しない
+            # 送信者が Bot と同じボイスチャンネルに参加していることを確認
+            # （仕様: VC 内のメッセージのみ読み上げる）
+            try:
+                vc_members = vc.channel.members if vc.channel else []
+            except Exception as e:
+                logger.debug(f"VC メンバー取得エラー: {e}")
+                vc_members = []
+
+            if message.author not in vc_members:
                 return
 
             gid = message.guild.id
