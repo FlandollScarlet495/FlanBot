@@ -3,8 +3,8 @@
 
 このファイルを実行してbotを起動する
 """
-from bot import FlandreBot
-from config import TOKEN
+from pythonfile.bot import FlandreBot
+from pythonfile.config import TOKEN
 
 
 def main():
