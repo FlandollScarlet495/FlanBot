@@ -138,6 +138,51 @@ class FlandreBot:
             await self.bot.tts_queues[gid].put((text, settings["speaker"]))
             logger.debug(f"[Guild {gid}] TTS キューに追加: {text[:20]}...")
 
+        @self.bot.event
+        async def on_voice_state_update(member, before, after):
+            """ユーザーの VC 参加/退出を監視して読み上げる
+
+            Bot が接続しているボイスチャンネルに誰かが入った／出たとき、
+            `○○さんが接続しました` / `○○さんが退出しました` を読み上げます。
+            """
+            # bot 自身とボットは無視
+            if member.bot or not member.guild:
+                return
+
+            vc = member.guild.voice_client
+            if not vc or not vc.is_connected() or not vc.channel:
+                return
+
+            bot_chan = vc.channel
+
+            # 参加: before が bot_chan ではなく after が bot_chan
+            joined = (before.channel != bot_chan) and (after.channel == bot_chan)
+            # 退出: before が bot_chan で after が bot_chan ではない
+            left = (before.channel == bot_chan) and (after.channel != bot_chan)
+
+            if not (joined or left):
+                return
+
+            gid = member.guild.id
+            settings = tts_settings_storage.get(gid)
+            if not settings["enabled"]:
+                return
+
+            if joined:
+                text = f"{member.display_name}さんが接続しました"
+            else:
+                text = f"{member.display_name}さんが退出しました"
+
+            # キューとワーカーを確保して enqueue
+            if gid not in self.bot.tts_queues:
+                self.bot.tts_queues[gid] = asyncio.Queue()
+                self.bot.tts_tasks[gid] = self.bot.loop.create_task(
+                    tts_worker(self.bot, gid)
+                )
+
+            await self.bot.tts_queues[gid].put((text, settings["speaker"]))
+            logger.info(f"[Guild {gid}] VC イベント読み上げキュー追加: {text}")
+
     def _setup_commands(self):
         """各モジュールのコマンドを登録"""
         help.setup_commands(self.bot)
