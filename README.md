@@ -241,11 +241,43 @@ TTS Queue に「○○さんが接続しました」を追加
 - マルチギルド対応
 - 非同期処理の最適化（並列 synthesis & playback）
 
+## 🔨 exe ビルド（スタンドアロン実行）
+
+Python がインストールされていない環境で実行するための exe フォルダを生成できます。
+
+### ビルド方法
+
+```bash
+# 依存パッケージのインストール
+pip install -r requirements.txt
+
+# exe をビルド
+python build_exe.py
+```
+
+### ビルド結果
+
+- `dist/ふらんBot/` - exe フォルダ（以下を含む）
+  - `ふらんBot.exe` - 実行可能なプログラム
+  - `pyfiles/` - ボット本体（exe と同じ階層）
+  - `logs/` - ログ出力先
+  - `stamp1/` - スタンプ画像
+  - `_internal/` - 依存ライブラリ
+
+### exe の実行
+
+1. `dist/ふらんBot/` フォルダに `.env` ファイルを配置
+2. `.env` に `DISCORD_TOKEN` と `DEVELOPER_ID` を設定
+3. `ふらんBot.exe` をダブルクリック
+
+**詳細は [BUILD_EXE.md](BUILD_EXE.md) を参照してください**
+
 ## 📖 参考資料
 
 - [discord.py documentation](https://discordpy.readthedocs.io/)
 - [pyopenjtalk GitHub](https://github.com/Hiroshiba/pyopenjtalk)
 - [OpenJTalk](http://open-jtalk.sourceforge.net/)
+- [PyInstaller documentation](https://pyinstaller.org/)
 
 ## 🎤 ライセンス
 
