@@ -76,20 +76,18 @@ class FlandreBot:
             if message.author == self.bot.user or not message.guild:
                 return
 
-            vc = message.guild.voice_client
-            # Bot が接続している VC がなければ無視
-            if not vc or not vc.is_connected():
+            # 送信者が VC に接続していることを確認（ユーザーがどのVCにいても可）
+            try:
+                author_voice = getattr(message.author, "voice", None)
+            except Exception:
+                author_voice = None
+
+            if not author_voice or not author_voice.channel:
                 return
 
-            # 送信者が Bot と同じボイスチャンネルに参加していることを確認
-            # （仕様: VC 内のメッセージのみ読み上げる）
-            try:
-                vc_members = vc.channel.members if vc.channel else []
-            except Exception as e:
-                logger.debug(f"VC メンバー取得エラー: {e}")
-                vc_members = []
-
-            if message.author not in vc_members:
+            # Bot がどのギルドの VC にも接続していなければ読み上げ不可
+            vc = message.guild.voice_client
+            if not vc or not vc.is_connected():
                 return
 
             gid = message.guild.id
