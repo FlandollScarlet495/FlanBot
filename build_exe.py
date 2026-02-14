@@ -24,6 +24,28 @@ HIDDEN_IMPORTS = [
     "pyfiles",
     "pyfiles.bot",
     "pyfiles.config",
+    # services パッケージ
+    "services",
+    "services.logger",
+    "services.permission",
+    "services.tts",
+    "services.storage",
+    "services.storage.base",
+    "services.storage.init_db",
+    "services.storage.tts_dict",
+    "services.storage.tts_settings",
+    "services.storage.vc_allow",
+    # commands パッケージ
+    "pyfiles.commands",
+    "pyfiles.commands.admin",
+    "pyfiles.commands.fun",
+    "pyfiles.commands.help",
+    "pyfiles.commands.images",
+    "pyfiles.commands.voice",
+    "pyfiles.commands.voice.allow",
+    "pyfiles.commands.voice.connect",
+    "pyfiles.commands.voice.tts_dict",
+    "pyfiles.commands.voice.watchdog",
 ]
 
 # データファイルを指定
@@ -53,7 +75,7 @@ def build_exe():
         "--onedir",  # フォルダ形式で生成（pyfiles/ と exe が同じ階層に）
         "--name=ふらんBot",  # exe の名前
         "--distpath=" + str(DIST_DIR),
-        "--buildpath=" + str(BUILD_DIR),
+        "--workpath=" + str(BUILD_DIR),
         "--specpath=" + str(ROOT_DIR),
         
         # コンソール設定
