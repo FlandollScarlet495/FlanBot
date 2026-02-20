@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
-from services.permission import is_admin_or_dev
-from services.storage import vc_allow_storage
+from ...services.permission import is_admin_or_dev
+from ...services.storage import vc_allow_storage
 
 def setup_commands(bot):
     # =====================

@@ -6,8 +6,8 @@ TTS辞書管理コマンド
 """
 import discord
 from discord import app_commands
-from services.permission import is_admin_or_dev
-from services.storage import tts_dict_storage
+from ...services.permission import is_admin_or_dev
+from ...services.storage import tts_dict_storage
 
 def setup_commands(bot):
     @bot.tree.command(name="tts_dict_add", description="TTS辞書に単語を追加（読み方を指定して読み上げを制御）")

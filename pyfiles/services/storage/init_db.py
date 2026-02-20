@@ -1,6 +1,6 @@
 import sqlite3
 from .base import SQLiteBase
-from services.logger import logger
+from ..logger import logger
 
 class DBInitializer(SQLiteBase):
     def init(self):

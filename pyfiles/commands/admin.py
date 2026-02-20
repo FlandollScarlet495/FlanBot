@@ -5,9 +5,9 @@
 """
 import discord
 from discord import app_commands
-from services.permission import is_admin_or_dev
-from services.logger import logger
-from config import MAX_DELETE
+from ..services.permission import is_admin_or_dev
+from ..services.logger import logger
+from ..config import MAX_DELETE
 
 
 def setup_commands(bot):

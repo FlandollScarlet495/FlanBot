@@ -1,7 +1,7 @@
 """
 ボイスチャット関連コマンドのエントリーポイント
 """
-from commands.voice import setup_commands as setup_voice
+from .voice import setup_commands as setup_voice
 
 def setup_commands(bot):
     """コマンドをbotに登録する"""

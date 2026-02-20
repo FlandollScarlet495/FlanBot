@@ -5,7 +5,7 @@
 """
 import discord
 from typing import Dict, Any, List
-from config import DEVELOPER_ID
+from ..config import DEVELOPER_ID
 
 
 def is_admin_or_dev(interaction: discord.Interaction) -> bool:

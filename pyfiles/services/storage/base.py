@@ -1,5 +1,5 @@
 import sqlite3
-from config import DB_PATH
+from ...config import DB_PATH
 
 class SQLiteBase:
     def __init__(self, db_path: str = DB_PATH):

@@ -1,6 +1,6 @@
 import asyncio
-from services.logger import logger
-from services.storage import tts_settings_storage
+from ...services.logger import logger
+from ...services.storage import tts_settings_storage
 
 async def vc_watchdog(bot, guild_id: int):
     while True:

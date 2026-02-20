@@ -10,16 +10,16 @@ import sys
 import asyncio
 from datetime import datetime
 import re
-from services.logger import logger
-from services.storage import vc_allow_storage, tts_settings_storage
-from services.tts import sanitize_text, tts_worker
+from .services.logger import logger
+from .services.storage import vc_allow_storage, tts_settings_storage
+from .services.tts import sanitize_text, tts_worker
 
 # Windows対応
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # コマンドモジュールをインポート
-from commands import help, admin, images, fun, voice
+from .commands import help, admin, images, fun, voice, minecraft_discord
 
 
 class FlandreBot:
@@ -72,69 +72,78 @@ class FlandreBot:
 
         @self.bot.event
         async def on_message(message):
-            # 自分の送信メッセージは無視（他Botは許可）
-            if message.author == self.bot.user or not message.guild:
+            # DMは無視
+            if not message.guild:
                 return
 
-            # 送信者が VC に接続していることを確認（ユーザーがどのVCにいても可）
-            try:
-                author_voice = getattr(message.author, "voice", None)
-            except Exception:
-                author_voice = None
-
-            if not author_voice or not author_voice.channel:
+            # Bot自身は無視
+            if message.author == self.bot.user:
                 return
 
-            # Bot がどのギルドの VC にも接続していなければ読み上げ不可
             vc = message.guild.voice_client
-            if not vc or not vc.is_connected():
+
+            # BotがVCにいなければ何も読まない
+            if not vc or not vc.is_connected() or not vc.channel:
+                return
+
+            # ユーザーがVCにいなければ読まない
+            if not message.author.voice or not message.author.voice.channel:
+                return
+
+            # Botと同じVCでなければ読まない
+            if message.author.voice.channel.id != vc.channel.id:
                 return
 
             gid = message.guild.id
             settings = tts_settings_storage.get(gid)
-            if not settings["enabled"]:
+
+            if not settings or not settings.get("enabled", False):
                 return
 
-            # リプライ情報を取得（あれば先頭に読み上げる）
+            # リプライ情報
             reply_prefix = ""
             if message.reference:
                 try:
-                    replied_msg = await message.channel.fetch_message(message.reference.message_id)
+                    replied_msg = await message.channel.fetch_message(
+                        message.reference.message_id
+                    )
                     if replied_msg and replied_msg.author:
-                        reply_prefix = f"{replied_msg.author.display_name}さんへのリプライ。"
+                        reply_prefix = (
+                            f"{replied_msg.author.display_name}さんへのリプライ。"
+                        )
                 except Exception as e:
                     logger.debug(f"リプライ情報取得エラー: {e}")
 
-            # '以下略' を検出したらその位置で切り取り、末尾に表示文言を付ける
-            content = message.content
-            m = re.search(r'以下(?:省略|略)', content)
-            suffix = ''
-            if m:
-                content_before = content[:m.start()].strip()
-                suffix = '（以下省略）'
-            else:
-                content_before = content
+            # メッセージ本文取得
+            content = message.content or ""
 
-            sanitized = sanitize_text(content_before, message.guild)
-            # 読み上げる本文が無ければ終了
+            # サニタイズ
+            try:
+                sanitized = sanitize_text(content, message.guild)
+            except Exception as e:
+                logger.debug(f"sanitizeエラー: {e}")
+                sanitized = content
+
             if not sanitized:
                 return
 
-            # サニタイズ後40文字以上は切り詰めて「（以下省略）」を追加
-            if len(sanitized) > 40:
-                sanitized = sanitized[:40]
-                suffix = '（以下省略）'
+            # 80文字制限
+            suffix = ""
+            if len(sanitized) > 80:
+                sanitized = sanitized[:80]
+                suffix = "（以下省略）"
 
             text = reply_prefix + sanitized + suffix
 
+            # TTSキュー初期化
             if gid not in self.bot.tts_queues:
                 self.bot.tts_queues[gid] = asyncio.Queue()
                 self.bot.tts_tasks[gid] = self.bot.loop.create_task(
                     tts_worker(self.bot, gid)
                 )
 
-            await self.bot.tts_queues[gid].put((text, settings["speaker"]))
-            logger.debug(f"[Guild {gid}] TTS キューに追加: {text[:20]}...")
+            await self.bot.tts_queues[gid].put((text, settings.get("speaker")))
+            logger.debug(f"[Guild {gid}] TTS キューに追加: {text[:5]}...")
 
         @self.bot.event
         async def on_voice_state_update(member, before, after):
@@ -188,6 +197,7 @@ class FlandreBot:
         images.setup_commands(self.bot)
         fun.setup_commands(self.bot)
         voice.setup_commands(self.bot)
+        minecraft_discord.setup_commands(self.bot)
     
     def run(self):
         """Botを起動"""

@@ -1,10 +1,10 @@
 import discord
 from discord import app_commands
 import asyncio
-from services.permission import can_use_vc
-from services.storage import vc_allow_storage, tts_settings_storage
-from services.tts import tts_worker
-from services.logger import logger
+from ...services.permission import can_use_vc
+from ...services.storage import vc_allow_storage, tts_settings_storage
+from ...services.tts import tts_worker
+from ...services.logger import logger
 from .watchdog import vc_watchdog
 
 def setup_commands(bot):

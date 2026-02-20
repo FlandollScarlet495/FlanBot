@@ -5,7 +5,7 @@
 """
 import discord
 from discord import app_commands
-from services.logger import logger
+from ..services.logger import logger
 
 
 def setup_commands(bot):

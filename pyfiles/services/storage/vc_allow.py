@@ -1,7 +1,7 @@
 import sqlite3
 from typing import Dict, Any
 from .base import SQLiteBase
-from services.logger import logger
+from ..logger import logger
 
 class VCAllowStorage(SQLiteBase):
 

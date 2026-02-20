@@ -10,8 +10,8 @@ import numpy as np
 import tempfile
 import io
 import hashlib
-from services.logger import logger
-from services.storage import tts_dict_storage
+from .logger import logger
+from .storage import tts_dict_storage
 
 def sanitize_text(text: str, guild=None) -> str:
     # URL削除
