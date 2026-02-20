@@ -22,7 +22,7 @@ def setup_commands(bot):
     async def on_ready():
         update_channel.start()
 
-    @tasks.loop(seconds=5)
+    @tasks.loop(seconds=60)
     async def update_channel():
 
         channel = bot.get_channel(VOICE_CHANNEL_ID)
@@ -36,10 +36,10 @@ def setup_commands(bot):
             players = status.players.online
             max_players = status.players.max
 
-            tps = "∞"
+            tps = "?"
             try:
                 with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-                    tps_raw = mcr.command("forge tps")
+                    tps_raw = mcr.command("tps")
                     for word in tps_raw.split():
                         if word.replace(".", "", 1).isdigit():
                             tps = word
