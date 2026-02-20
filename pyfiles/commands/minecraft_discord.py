@@ -7,6 +7,7 @@ import discord
 from discord.ext import tasks
 from mcstatus import JavaServer
 from mcrcon import MCRcon
+import re
 from pyfiles.config import (
     VOICE_CHANNEL_ID,
     SERVER_ADDRESS,
@@ -36,16 +37,15 @@ def setup_commands(bot):
             players = status.players.online
             max_players = status.players.max
 
-            tps = "?"
             try:
                 with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
                     tps_raw = mcr.command("tps")
-                    for word in tps_raw.split():
-                        if word.replace(".", "", 1).isdigit():
-                            tps = word
-                            break
+                    # 数字とドットとカンマだけ残すよ！
+                    clean_tps = re.sub(r'[^\d.,]', '', tps_raw)
+                    # 最初の数字（1分間の平均）を取り出す
+                    tps = clean_tps.split(',')[0]
             except Exception:
-                pass
+                tps = "Error"
 
             new_name = f"ゆきのさば {players}/{max_players} TPS:{tps}"
             await channel.edit(name=new_name)
