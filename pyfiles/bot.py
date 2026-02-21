@@ -71,27 +71,33 @@ class FlandreBot:
             await self.bot.tree.sync()
 
         @self.bot.event
-        async def on_message(message):
-            # DMは無視
+        async def on_message(message: discord.Message):
+            if message.author.bot:
+                return
+
             if not message.guild:
                 return
 
-            # Bot自身は無視
-            if message.author == self.bot.user:
-                return
-
-            vc = message.guild.voice_client
-
-            # BotがVCにいなければ何も読まない
-            if not vc or not vc.is_connected() or not vc.channel:
-                return
-
-            # ユーザーがVCにいなければ読まない
+            # 発言者がVC参加中か（B）
             if not message.author.voice or not message.author.voice.channel:
                 return
 
-            # Botと同じVCでなければ読まない
-            if message.author.voice.channel.id != vc.channel.id:
+            user_vc = message.author.voice.channel
+
+            # ===== A: このチャンネルがVCテキストか判定 =====
+            # Discordの仕様上、VCテキストは
+            # 「同名のVCが存在するテキストチャンネル」として扱われる
+
+            matching_vc = discord.utils.get(
+                message.guild.voice_channels,
+                name=message.channel.name
+            )
+
+            if not matching_vc:
+                return
+
+            # 同名VCがあっても、参加中VCと一致しなければ無効
+            if matching_vc.id != user_vc.id:
                 return
 
             gid = message.guild.id
