@@ -8,10 +8,12 @@ import discord
 from discord.ext import commands
 import sys
 import asyncio
-from datetime import datetime
-import re
+import aiosqlite
+from .services.db_initializer import DBInitializer
+
+from .commands.images import images
 from .services.logger import logger
-from .services.storage import vc_allow_storage, tts_settings_storage
+from .services.storage import tts_settings_storage
 from .services.tts import sanitize_text, tts_worker
 
 # Windows対応
@@ -19,7 +21,7 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # コマンドモジュールをインポート
-from .commands import help, admin, images, fun, voice, minecraft_discord
+from .commands import help, admin, fun, voice, minecraft_discord
 
 
 class FlandreBot:
@@ -47,9 +49,7 @@ class FlandreBot:
             help_command=None
         )
 
-        # イベントハンドラとコマンド登録
         self._setup_events()
-        self._setup_commands()
 
         self.bot.tts_queues = {}
         self.bot.tts_tasks = {}
@@ -64,14 +64,22 @@ class FlandreBot:
         async def on_ready():
             """Bot起動時の処理"""
             logger.info("ふらんちゃんが起動したよ💗")
-        
+
         @self.bot.event
         async def setup_hook():
             """Bot初期化時の処理"""
+            
+            db_path = "database.db"
+            self.bot.db = await aiosqlite.connect(db_path)
+            initializer = DBInitializer(db_path)
+            await initializer.init()
+
+            self._setup_commands()
             await self.bot.tree.sync()
 
         @self.bot.event
         async def on_message(message: discord.Message):
+            
             if message.author.bot:
                 return
 

@@ -6,7 +6,7 @@
 import discord
 from discord import app_commands
 import os
-from ..services.logger import logger
+from ...services.logger import logger
 import re
 
 # 画像ファイルの基準ディレクトリ（commands/ ディレクトリ）

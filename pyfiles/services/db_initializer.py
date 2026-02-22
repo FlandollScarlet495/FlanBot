@@ -1,5 +1,5 @@
 import aiosqlite
-from ..logger import logger
+from .logger import logger
 
 class DBInitializer:
 

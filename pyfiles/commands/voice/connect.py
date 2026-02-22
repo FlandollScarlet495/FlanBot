@@ -64,6 +64,7 @@ def setup_commands(bot):
 
     @bot.tree.command(name="skip", description="TTS再生をスキップ")
     async def skip(interaction: discord.Interaction):
+
         gid = interaction.guild.id
         allow_data = vc_allow_storage.load(gid)
 
@@ -80,19 +81,18 @@ def setup_commands(bot):
             await interaction.response.send_message("再生中ではありません", ephemeral=True)
             return
 
-        bot.skip_flags[gid] = True
-        # 合成済み再生キューがあれば消去して、再生中の音声も停止する
-        try:
-            if gid in bot.playback_queues:
-                pq = bot.playback_queues[gid]
+        vc = interaction.guild.voice_client
+        if vc and vc.is_playing():
+            vc.stop()
+
+        # キューを空にする
+        queue = bot.tts_queues.get(gid)
+        if queue:
+            while not queue.empty():
                 try:
-                    while not pq.empty():
-                        pq.get_nowait()
-                        pq.task_done()
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                    queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    break
 
         await interaction.response.send_message("TTS再生をスキップしました")
         logger.info(f"/skip: {interaction.user} skipped TTS in guild {gid}")
