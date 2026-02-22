@@ -2,10 +2,11 @@ import discord
 from discord import app_commands
 import asyncio
 from ...services.permission import can_use_vc
-from ...services.storage import vc_allow_storage, tts_settings_storage
+from ...services.storage import vc_allow_storage
 from ...services.tts import tts_worker
 from ...services.logger import logger
 from .watchdog import vc_watchdog
+
 
 def setup_commands(bot):
 
@@ -30,7 +31,7 @@ def setup_commands(bot):
         await channel.connect()
 
         bot.loop.create_task(vc_watchdog(bot, gid))
-        tts_settings_storage.set_enabled(gid, True)
+        await bot.tts_settings_storage.set_enabled(gid, True)
 
         await interaction.response.send_message(f"「{channel}」に参加しました")
         logger.info(f"/join: {interaction.user} joined {channel}")
@@ -49,12 +50,13 @@ def setup_commands(bot):
             await interaction.response.send_message("VCに参加していません")
             return
 
-        tts_settings_storage.set_enabled(gid, False)
+        await bot.tts_settings_storage.set_enabled(gid, False)
 
         if gid in bot.tts_tasks:
             bot.tts_tasks[gid].cancel()
             del bot.tts_tasks[gid]
-            del bot.tts_queues[gid]
+            if gid in bot.tts_queues:
+                del bot.tts_queues[gid]
 
         bot.manual_disconnect.add(gid)
         await vc.disconnect()
@@ -64,7 +66,6 @@ def setup_commands(bot):
 
     @bot.tree.command(name="skip", description="TTS再生をスキップ")
     async def skip(interaction: discord.Interaction):
-
         gid = interaction.guild.id
         allow_data = vc_allow_storage.load(gid)
 
@@ -81,11 +82,8 @@ def setup_commands(bot):
             await interaction.response.send_message("再生中ではありません", ephemeral=True)
             return
 
-        vc = interaction.guild.voice_client
-        if vc and vc.is_playing():
-            vc.stop()
+        vc.stop()
 
-        # キューを空にする
         queue = bot.tts_queues.get(gid)
         if queue:
             while not queue.empty():
@@ -111,7 +109,7 @@ def setup_commands(bot):
             await interaction.response.send_message("VCに参加していません", ephemeral=True)
             return
 
-        tts_settings_storage.set_enabled(gid, True)
+        await bot.tts_settings_storage.set_enabled(gid, True)
 
         if gid not in bot.tts_queues:
             bot.tts_queues[gid] = asyncio.Queue()
@@ -136,7 +134,7 @@ def setup_commands(bot):
             await interaction.response.send_message("VCに参加していません", ephemeral=True)
             return
 
-        tts_settings_storage.set_enabled(gid, False)
+        await bot.tts_settings_storage.set_enabled(gid, False)
 
         if gid in bot.tts_tasks:
             bot.tts_tasks[gid].cancel()

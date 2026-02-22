@@ -13,8 +13,9 @@ from .services.db_initializer import DBInitializer
 
 from .commands.images import images
 from .services.logger import logger
-from .services.storage import tts_settings_storage
 from .services.tts import sanitize_text, tts_worker
+from .services.storage.tts_settings import TTSSettingsStorage
+from .services.storage.init_db import DBInitializer
 
 # Windows対応
 if sys.platform == "win32":
@@ -75,6 +76,7 @@ class FlandreBot:
             await initializer.init()
 
             self._setup_commands()
+            self.bot.tts_settings_storage = TTSSettingsStorage(db_path)
             await self.bot.tree.sync()
 
         @self.bot.event
@@ -109,7 +111,7 @@ class FlandreBot:
                 return
 
             gid = message.guild.id
-            settings = tts_settings_storage.get(gid)
+            settings = await self.bot.tts_settings_storage.get(gid)
 
             if not settings or not settings.get("enabled", False):
                 return
@@ -185,7 +187,7 @@ class FlandreBot:
                 return
 
             gid = member.guild.id
-            settings = tts_settings_storage.get(gid)
+            settings = await self.bot.tts_settings_storage.get(gid)
             if not settings["enabled"]:
                 return
 

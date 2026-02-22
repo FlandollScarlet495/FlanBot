@@ -1,29 +1,20 @@
-from .base import SQLiteBase
+import aiosqlite
 
-class TTSSettingsStorage(SQLiteBase):
+class TTSSettingsStorage:
 
-    def set_enabled(self, guild_id: int, enabled: bool):
-        with self.connect() as conn:
-            conn.execute("""
-                INSERT INTO tts_settings (guild_id, enabled, speaker_id)
-                VALUES (?, ?, 1)
-                ON CONFLICT(guild_id)
-                DO UPDATE SET enabled = excluded.enabled
-            """, (guild_id, int(enabled)))
-            conn.commit()
+    def __init__(self, db_path: str):
+        self.db_path = db_path
 
-    def get(self, guild_id: int) -> dict:
-        with self.connect() as conn:
-            cur = conn.execute(
+    async def get(self, guild_id: int):
+        async with aiosqlite.connect(self.db_path) as conn:
+            async with conn.execute(
                 "SELECT enabled, speaker_id FROM tts_settings WHERE guild_id = ?",
                 (guild_id,)
-            )
-            row = cur.fetchone()
-            if row:
-                return {"enabled": bool(row[0]), "speaker": row[1]}
+            ) as cur:
+                row = await cur.fetchone()
 
-            conn.execute(
-                "INSERT INTO tts_settings VALUES (?, 1, 1)",
-                (guild_id,)
-            )
+        if row is None:
             return {"enabled": True, "speaker": 1}
+
+        enabled, speaker_id = row
+        return {"enabled": bool(enabled), "speaker": speaker_id}

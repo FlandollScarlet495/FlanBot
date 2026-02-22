@@ -1,6 +1,6 @@
 import asyncio
 from ...services.logger import logger
-from ...services.storage import tts_settings_storage
+
 
 async def vc_watchdog(bot, guild_id: int):
     while True:
@@ -28,8 +28,9 @@ async def vc_watchdog(bot, guild_id: int):
         if not channel:
             continue
 
-        settings = tts_settings_storage.get(guild_id)
-        if not settings["enabled"]:
+        # ← ここを修正
+        settings = await bot.tts_settings_storage.get(guild_id)
+        if not settings or not settings.get("enabled", False):
             return
 
         try:
