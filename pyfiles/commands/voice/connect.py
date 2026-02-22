@@ -12,19 +12,21 @@ def setup_commands(bot):
 
     @bot.tree.command(name="join", description="VC参加")
     async def join(interaction: discord.Interaction):
+        await interaction.response.defer()
+
         gid = interaction.guild.id
         allow_data = vc_allow_storage.load(gid)
 
         if not can_use_vc(interaction, allow_data):
-            await interaction.response.send_message("権限がありません", ephemeral=True)
+            await interaction.followup.send("権限がありません", ephemeral=True)
             return
 
         if not interaction.user.voice or not interaction.user.voice.channel:
-            await interaction.response.send_message("先にVCへ参加してください")
+            await interaction.followup.send("先にVCへ参加してください")
             return
 
         if interaction.guild.voice_client:
-            await interaction.response.send_message("すでにVCに参加しています")
+            await interaction.followup.send("すでにVCに参加しています")
             return
 
         channel = interaction.user.voice.channel
@@ -33,7 +35,7 @@ def setup_commands(bot):
         bot.loop.create_task(vc_watchdog(bot, gid))
         await bot.tts_settings_storage.set_enabled(gid, True)
 
-        await interaction.response.send_message(f"「{channel}」に参加しました")
+        await interaction.followup.send(f"「{channel}」に参加しました")
         logger.info(f"/join: {interaction.user} joined {channel}")
 
     @bot.tree.command(name="leave", description="VC退出")
