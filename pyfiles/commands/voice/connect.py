@@ -12,6 +12,7 @@ def setup_commands(bot):
 
     @bot.tree.command(name="join", description="VC参加")
     async def join(interaction: discord.Interaction):
+
         await interaction.response.defer()
 
         gid = interaction.guild.id
@@ -21,22 +22,27 @@ def setup_commands(bot):
             await interaction.followup.send("権限がありません", ephemeral=True)
             return
 
-        if not interaction.user.voice or not interaction.user.voice.channel:
+        if not interaction.user.voice:
             await interaction.followup.send("先にVCへ参加してください")
             return
 
-        if interaction.guild.voice_client:
-            await interaction.followup.send("すでにVCに参加しています")
-            return
-
         channel = interaction.user.voice.channel
-        await channel.connect()
 
-        bot.loop.create_task(vc_watchdog(bot, gid))
-        await bot.tts_settings_storage.set_enabled(gid, True)
+        vc = interaction.guild.voice_client
+        if vc:
+            await vc.move_to(channel)
+        else:
+            await channel.connect()
+
+        # watchdogは1つだけ
+        if gid in bot.watchdog_tasks:
+            bot.watchdog_tasks[gid].cancel()
+
+        bot.watchdog_tasks[gid] = bot.loop.create_task(
+            vc_watchdog(bot, gid)
+        )
 
         await interaction.followup.send(f"「{channel}」に参加しました")
-        logger.info(f"/join: {interaction.user} joined {channel}")
 
     @bot.tree.command(name="leave", description="VC退出")
     async def leave(interaction: discord.Interaction):
@@ -62,6 +68,10 @@ def setup_commands(bot):
 
         bot.manual_disconnect.add(gid)
         await vc.disconnect()
+
+        if gid in bot.watchdog_tasks:
+            bot.watchdog_tasks[gid].cancel()
+            del bot.watchdog_tasks[gid]
 
         await interaction.response.send_message("VCから退出しました")
         logger.info(f"/leave: {interaction.user} left VC")
@@ -115,6 +125,8 @@ def setup_commands(bot):
 
         if gid not in bot.tts_queues:
             bot.tts_queues[gid] = asyncio.Queue()
+
+        if gid not in bot.tts_tasks:
             bot.tts_tasks[gid] = bot.loop.create_task(
                 tts_worker(bot, gid)
             )
@@ -146,3 +158,169 @@ def setup_commands(bot):
 
         await interaction.response.send_message("TTS読み込みを無効化しました")
         logger.info(f"/tts_off: {interaction.user} disabled TTS in guild {gid}")
+
+    @bot.tree.command(name="setvoice", description="音声設定")
+    async def setvoice(
+        interaction: discord.Interaction,
+        engine: str = None,
+        name: str = None,
+        style: str = None,
+        speed: int = None,
+        pitch: int = None
+    ):
+
+        if not interaction.guild:
+            await interaction.response.send_message("サーバー内で実行してください")
+            return
+
+        gid = interaction.guild.id
+        uid = interaction.user.id
+
+        # 現在設定取得（なければデフォルト）
+        current = await interaction.client.db_initializer.get_user_voice(gid, uid)
+
+        current_engine = current.get("engine", "openjtalk")
+        current_speaker = current.get("speaker_id")
+        current_speed = current.get("speed", 1.0)
+        current_pitch = current.get("pitch", 0.0)
+
+        # ---- engine処理 ----
+        if engine:
+            if engine not in ["openjtalk", "voicevox"]:
+                await interaction.response.send_message(
+                    "engineは openjtalk / voicevox"
+                )
+                return
+            current_engine = engine
+
+        # ---- voicevox話者処理 ----
+        if name:
+            if current_engine != "voicevox":
+                await interaction.response.send_message(
+                    "voicevoxを使用する場合 engine=voicevox を指定してください"
+                )
+                return
+
+            if style is None:
+                style = "ノーマル"
+
+            speaker_id = interaction.client.voicevox.get_id(name, style)
+
+            if speaker_id is None:
+                await interaction.response.send_message("指定された声が見つかりません")
+                return
+
+            current_speaker = speaker_id
+
+        # ---- speed処理 ----
+        if speed is not None:
+            if not (50 <= speed <= 200):
+                await interaction.response.send_message("speedは50〜200")
+                return
+            current_speed = speed / 100
+
+        # ---- pitch処理 ----
+        if pitch is not None:
+            if not (50 <= pitch <= 200):
+                await interaction.response.send_message("pitchは50〜200")
+                return
+            current_pitch = (pitch - 100) / 100
+
+        # 保存
+        await interaction.client.db_initializer.set_user_voice(
+            gid,
+            uid,
+            current_engine,
+            current_speaker,
+            current_speed,
+            current_pitch
+        )
+
+        await interaction.response.send_message("音声設定を更新しました")
+
+    @bot.tree.command(name="setmembervoice", description="メンバーの音声設定を変更")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def setmembervoice(
+        interaction: discord.Interaction,
+        member: discord.Member,
+        engine: str = None,
+        name: str = None,
+        style: str = None,
+        speed: int = None,
+        pitch: int = None
+    ):
+
+        if not interaction.guild:
+            await interaction.response.send_message("サーバー内で実行してください")
+            return
+
+        gid = interaction.guild.id
+        uid = member.id
+
+        current = await interaction.client.db_initializer.get_user_voice(gid, uid)
+
+        current_engine = current.get("engine", "openjtalk")
+        current_speaker = current.get("speaker_id")
+        current_speed = current.get("speed", 1.0)
+        current_pitch = current.get("pitch", 0.0)
+
+        if engine:
+            if engine not in ["openjtalk", "voicevox"]:
+                await interaction.response.send_message("engineは openjtalk / voicevox")
+                return
+            current_engine = engine
+
+        if name:
+            if current_engine != "voicevox":
+                await interaction.response.send_message("voicevoxを使用する場合 engine=voicevox を指定してください")
+                return
+
+            if style is None:
+                style = "ノーマル"
+
+            speaker_id = interaction.client.voicevox.get_id(name, style)
+            if speaker_id is None:
+                await interaction.response.send_message("指定された声が見つかりません")
+                return
+
+            current_speaker = speaker_id
+
+        if speed is not None:
+            if not (50 <= speed <= 200):
+                await interaction.response.send_message("speedは50〜200")
+                return
+            current_speed = speed / 100
+
+        if pitch is not None:
+            if not (50 <= pitch <= 200):
+                await interaction.response.send_message("pitchは50〜200")
+                return
+            current_pitch = (pitch - 100) / 100
+
+        await interaction.client.db_initializer.set_user_voice(
+            gid,
+            uid,
+            current_engine,
+            current_speaker,
+            current_speed,
+            current_pitch
+        )
+
+        await interaction.response.send_message(
+            f"{member.display_name} の音声設定を更新しました"
+        )
+
+    @bot.tree.command(name="voice_list")
+    async def voice_list(interaction):
+
+        voices = interaction.client.voicevox.voice_dict
+
+        text = ""
+
+        for name, styles in voices.items():
+            style_list = ", ".join(styles.keys())
+            text += f"{name} : {style_list}\n"
+
+        await interaction.response.send_message(
+            f"利用可能話者一覧\n{text[:1800]}"
+        )

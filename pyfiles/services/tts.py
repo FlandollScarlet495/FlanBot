@@ -8,6 +8,7 @@ import numpy as np
 import io
 from .logger import logger
 
+
 def sanitize_text(text: str, guild=None) -> str:
     # URL削除
     text = re.sub(r'https?://\S+', '', text)
@@ -84,12 +85,16 @@ def synthesize(text: str, guild_id: int, speaker=None) -> io.BytesIO:
 
 async def tts_worker(bot, guild_id: int):
 
-    guild = bot.get_guild(guild_id)
     queue = bot.tts_queues[guild_id]
 
     while True:
         try:
-            text, speaker = await queue.get()
+            text, user_id = await queue.get()
+
+            guild = bot.get_guild(guild_id)
+            if not guild:
+                queue.task_done()
+                continue
 
             vc = guild.voice_client
             if not vc or not vc.is_connected():
@@ -101,15 +106,39 @@ async def tts_worker(bot, guild_id: int):
                 queue.task_done()
                 continue
 
-            buffer = await asyncio.to_thread(
-                synthesize, clean, guild_id, speaker
+            engine, speaker_id, speed, pitch = \
+                await bot.db_initializer.get_user_voice(
+                    guild_id, user_id
             )
 
-            audio = discord.FFmpegPCMAudio(buffer, pipe=True)
-            vc.play(discord.PCMVolumeTransformer(audio, volume=0.7))
+            if engine == "voicevox":
+                buffer = await bot.voicevox.synthesize(
+                    clean,
+                    speaker_id,
+                    speed,
+                    pitch
+                )
+            else:
+                buffer = await asyncio.to_thread(
+                    synthesize,
+                    clean,
+                    guild_id,
+                    speaker_id
+                )
+            
+            if vc.is_playing():
+                vc.stop()
 
-            # 再生終了待ち
-            while vc.is_playing():
+            audio = discord.FFmpegPCMAudio(
+                buffer,
+                pipe=True,
+                before_options="-nostdin",
+                options="-loglevel quiet"
+            )
+
+            vc.play(audio)
+
+            while vc.is_connected() and vc.is_playing():
                 await asyncio.sleep(0.1)
 
             queue.task_done()

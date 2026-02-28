@@ -1,5 +1,6 @@
 import asyncio
 from ...services.logger import logger
+from ...services.tts import tts_worker
 
 
 async def vc_watchdog(bot, guild_id: int):
@@ -28,13 +29,27 @@ async def vc_watchdog(bot, guild_id: int):
         if not channel:
             continue
 
-        # ← ここを修正
         settings = await bot.tts_settings_storage.get(guild_id)
         if not settings or not settings.get("enabled", False):
             return
 
         try:
+            # 既存worker停止
+            if guild_id in bot.tts_tasks:
+                bot.tts_tasks[guild_id].cancel()
+                del bot.tts_tasks[guild_id]
+
+            if guild_id in bot.tts_queues:
+                del bot.tts_queues[guild_id]
+
             await channel.connect()
             logger.info(f"VC再接続成功: {channel}")
+
+            # worker再起動
+            bot.tts_queues[guild_id] = asyncio.Queue()
+            bot.tts_tasks[guild_id] = bot.loop.create_task(
+                tts_worker(bot, guild_id)
+            )
+
         except Exception as e:
             logger.error(f"VC再接続失敗: {e}")

@@ -15,6 +15,7 @@ from .services.logger import logger
 from .services.tts import sanitize_text, tts_worker
 from .services.storage.tts_settings import TTSSettingsStorage
 from .services.storage.init_db import DBInitializer
+from .services.voicevox import VoicevoxEngine
 
 # Windows対応
 if sys.platform == "win32":
@@ -71,11 +72,21 @@ class FlandreBot:
             
             db_path = "database.db"
             self.bot.db = await aiosqlite.connect(db_path)
-            initializer = DBInitializer(db_path)
-            await initializer.init()
+
+            self.bot.db_initializer = DBInitializer(db_path)
+            await self.bot.db_initializer.init()
+            
+            self.bot.tts_settings_storage = TTSSettingsStorage(db_path)
+            
+            # これを追加
+            self.bot.voicevox = VoicevoxEngine()
+            self.watchdog_tasks = {}
+            self.bot.watchdog_tasks = {}
+            self.bot.tts_tasks = {}
+            self.bot.tts_queues = {}
+            self.bot.manual_disconnect = set()
 
             self._setup_commands()
-            self.bot.tts_settings_storage = TTSSettingsStorage(db_path)
             await self.bot.tree.sync()
 
         @self.bot.event
@@ -157,7 +168,7 @@ class FlandreBot:
                     tts_worker(self.bot, gid)
                 )
 
-            await self.bot.tts_queues[gid].put((text, settings.get("speaker")))
+            await self.bot.tts_queues[gid].put((text, message.author.id))
             logger.debug(f"[Guild {gid}] TTS キューに追加: {text[:5]}...")
 
         @self.bot.event
@@ -202,7 +213,7 @@ class FlandreBot:
                     tts_worker(self.bot, gid)
                 )
 
-            await self.bot.tts_queues[gid].put((text, settings["speaker"]))
+            await self.bot.tts_queues[gid].put((text, member.id))
             logger.info(f"[Guild {gid}] VC イベント読み上げキュー追加: {text}")
 
     def _setup_commands(self):
