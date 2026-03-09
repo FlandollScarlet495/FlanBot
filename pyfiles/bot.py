@@ -22,8 +22,7 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # コマンドモジュールをインポート
-from .commands import help, admin, fun, voice, minecraft_discord
-
+from .commands import help, admin, fun, voices, minecraft_discord
 
 class FlandreBot:
     """ふらんちゃんbotのメインクラス"""
@@ -222,7 +221,7 @@ class FlandreBot:
         admin.setup_commands(self.bot)
         images.setup_commands(self.bot)
         fun.setup_commands(self.bot)
-        voice.setup_commands(self.bot)
+        voices.setup_commands(self.bot)
         minecraft_discord.setup_commands(self.bot)
     
     def run(self):

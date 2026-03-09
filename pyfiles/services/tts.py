@@ -7,6 +7,7 @@ import unicodedata
 import numpy as np
 import io
 from .logger import logger
+from .voicevox import VoicevoxEngine
 
 
 def sanitize_text(text: str, guild=None) -> str:
@@ -84,7 +85,6 @@ def synthesize(text: str, guild_id: int, speaker=None) -> io.BytesIO:
     return buffer
 
 async def tts_worker(bot, guild_id: int):
-
     queue = bot.tts_queues[guild_id]
 
     while True:
@@ -109,25 +109,16 @@ async def tts_worker(bot, guild_id: int):
             engine, speaker_id, speed, pitch = \
                 await bot.db_initializer.get_user_voice(
                     guild_id, user_id
-            )
+                )
 
             if engine == "voicevox":
                 buffer = await bot.voicevox.synthesize(
-                    clean,
-                    speaker_id,
-                    speed,
-                    pitch
+                    clean, speaker_id, speed, pitch
                 )
             else:
                 buffer = await asyncio.to_thread(
-                    synthesize,
-                    clean,
-                    guild_id,
-                    speaker_id
+                    synthesize, clean, guild_id, speaker_id
                 )
-            
-            if vc.is_playing():
-                vc.stop()
 
             audio = discord.FFmpegPCMAudio(
                 buffer,

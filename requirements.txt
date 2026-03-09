@@ -8,3 +8,5 @@ mypy>=1.0.0
 mcstatus
 mcrcon
 aiosqlite
+pynacl
+davey
