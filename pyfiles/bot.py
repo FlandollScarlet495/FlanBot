@@ -9,6 +9,7 @@ from discord.ext import commands
 import sys
 import asyncio
 import aiosqlite
+import os
 
 from .commands.images import images
 from .services.logger import logger
@@ -69,7 +70,7 @@ class FlandreBot:
         async def setup_hook():
             """Bot初期化時の処理"""
             
-            db_path = "database.db"
+            db_path = os.getenv("DB_PATH") or "flandre_bot.db"
             self.bot.db = await aiosqlite.connect(db_path)
 
             self.bot.db_initializer = DBInitializer(db_path)

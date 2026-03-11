@@ -16,7 +16,7 @@ SERVER_ADDRESS = str(os.getenv("SERVER_ADDRESS"))
 SERVER_PORT = int(os.getenv("SERVER_PORT") or 25565)
 VOICE_CHANNEL_ID = int(os.getenv("VOICE_CHANNEL_ID") or 0)
 RCON_HOST = str(os.getenv("RCON_HOST"))
-RCON_PORT = int(os.getenv("RCON_PORT" or 25575))
+RCON_PORT = int(os.getenv("RCON_PORT") or 25575)
 RCON_PASSWORD = str(os.getenv("RCON_PASSWORD"))
 
 if not TOKEN:
