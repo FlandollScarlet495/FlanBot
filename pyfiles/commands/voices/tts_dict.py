@@ -88,7 +88,7 @@ def setup_commands(bot):
         表示テキスト = "📚 TTS辞書登録状況:\n\n"
         for 番号, (表記, 読み方) in enumerate(辞書リスト, 1):
             表示テキスト += f"{番号}. `{表記}` → `{読み方}`\n"
-        
+
         表示テキスト += f"\n💡 計 {len(辞書リスト)} 件登録されています"
 
         await interaction.response.send_message(

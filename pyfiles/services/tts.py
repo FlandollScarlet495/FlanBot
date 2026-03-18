@@ -60,12 +60,12 @@ def sanitize_text(text: str, guild=None) -> str:
 def synthesize(text: str, guild_id: int, speaker=None) -> io.BytesIO:
     """
     テキストを音声に変換してメモリバッファに返す
-    
+
     Args:
         text: 音声合成対象テキスト
         guild_id: ギルドID
         speaker: スピーカーID（未使用）
-    
+
     Returns:
         WAV データを含む BytesIO オブジェクト
     """
@@ -81,7 +81,7 @@ def synthesize(text: str, guild_id: int, speaker=None) -> io.BytesIO:
     buffer = io.BytesIO()
     sf.write(buffer, wav, sr, format='WAV')
     buffer.seek(0)
-    
+
     return buffer
 
 async def tts_worker(bot, guild_id: int):

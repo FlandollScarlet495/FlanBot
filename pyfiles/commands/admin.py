@@ -12,7 +12,7 @@ from ..config import MAX_DELETE
 
 def setup_commands(bot):
     """コマンドをbotに登録する"""
-    
+
     @bot.tree.command(name="give_role", description="指定したユーザーにロールを付与")
     @app_commands.describe(member="ロールを付与するユーザー", role="付与するロール")
     async def give_role(interaction: discord.Interaction, member: discord.Member, role: discord.Role):
@@ -32,7 +32,7 @@ def setup_commands(bot):
         # 既に持っているかチェック
         if role in member.roles:
             await interaction.response.send_message(
-                f"{member.mention} はすでに {role.name} を持っています", 
+                f"{member.mention} はすでに {role.name} を持っています",
                 ephemeral=True
             )
             return
@@ -40,7 +40,7 @@ def setup_commands(bot):
         # ロール階層チェック
         if role >= bot_member.top_role:
             await interaction.response.send_message(
-                "Botのロール階層が低すぎて、このロールは付与できません", 
+                "Botのロール階層が低すぎて、このロールは付与できません",
                 ephemeral=True
             )
             return
@@ -54,7 +54,7 @@ def setup_commands(bot):
         except Exception as e:
             logger.error(f"give_role エラー: {e}")
             await interaction.response.send_message("エラーが発生しました", ephemeral=True)
-    
+
     @bot.tree.command(name="remove_role", description="指定したユーザーからロールを剥奪")
     @app_commands.describe(member="ロールを剥奪するユーザー", role="剥奪するロール")
     async def remove_role(interaction: discord.Interaction, member: discord.Member, role: discord.Role):
@@ -74,7 +74,7 @@ def setup_commands(bot):
         # 持っていないかチェック
         if role not in member.roles:
             await interaction.response.send_message(
-                f"{member.mention} は {role.name} を持っていません", 
+                f"{member.mention} は {role.name} を持っていません",
                 ephemeral=True
             )
             return
@@ -82,7 +82,7 @@ def setup_commands(bot):
         # ロール階層チェック
         if role >= bot_member.top_role:
             await interaction.response.send_message(
-                "Botのロール階層が低すぎて、このロールは剥奪できません", 
+                "Botのロール階層が低すぎて、このロールは剥奪できません",
                 ephemeral=True
             )
             return
@@ -96,7 +96,7 @@ def setup_commands(bot):
         except Exception as e:
             logger.error(f"remove_role エラー: {e}")
             await interaction.response.send_message("エラーが発生しました", ephemeral=True)
-    
+
     @bot.tree.command(name="delete", description="自分とBotのメッセージを削除")
     @app_commands.describe(count="削除する件数（最大50）")
     async def delete(interaction: discord.Interaction, count: int):
@@ -115,7 +115,7 @@ def setup_commands(bot):
 
         await interaction.followup.send(f"{len(deleted)} 件のメッセージを削除しました")
         logger.info(f"/delete コマンド実行: {interaction.user} ({len(deleted)}件削除)")
-    
+
     # admin_del用のViewクラス
     class AdminDeleteConfirm(discord.ui.View):
         def __init__(self, interaction: discord.Interaction, count: int):
@@ -162,7 +162,7 @@ def setup_commands(bot):
                 pass
 
             self.stop()
-    
+
     @bot.tree.command(name="admin_del", description="管理者専用メッセージ削除")
     @app_commands.describe(count="削除する件数（最大50）")
     async def admin_del(interaction: discord.Interaction, count: int):
@@ -179,8 +179,8 @@ def setup_commands(bot):
         view = AdminDeleteConfirm(interaction, count)
 
         await interaction.response.send_message(
-            f"本当に **{count} 件** のメッセージを削除しますか？", 
-            view=view, 
+            f"本当に **{count} 件** のメッセージを削除しますか？",
+            view=view,
             ephemeral=True
         )
         logger.info(f"/admin_del コマンド実行: {interaction.user} ({count}件削除予定)")

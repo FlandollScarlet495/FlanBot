@@ -83,28 +83,42 @@ git clone https://github.com/FlandollScarlet495/FlanBot.git
 cd FlanBot
 ```
 
-#### 2. 依存パッケージをインストール
+#### 2. pythonバージョンを確認
+
+```bash
+python --version
+Python 3.14.X
+```
+
+#### 3. 依存パッケージをインストール
 
 ```bash
 pip install -r requirements.txt
 ```
 
-#### 3. 環境変数をセットアップ
+#### 4. 環境変数をセットアップ
 
 `.env` ファイルを作成し、以下の内容を記述します：
 
 ```env
 DISCORD_TOKEN=your_discord_bot_token_here
+SERVER_ADDRESS=example.playit.gg
+SERVER_PORT=25565
+RCON_HOST=your_minecraft_server_rcon_ip_here
+RCON_PORT=25575
+RCON_PASSWORD=your_rcon_password_here
+VOICE_CHANNEL_ID=your_server_voice_channel_id_here
 DEVELOPER_ID=your_user_id_here
+VOICE_ENGINE_PATH=your_voice_engine_path_here
 ```
 
-#### 4. データベースを初期化
+#### 5. データベースを初期化
 
 ```bash
 python services/storage/init_db.py
 ```
 
-#### 5. Botを起動
+#### 6. Botを起動
 
 ```bash
 python main.py

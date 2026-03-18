@@ -12,7 +12,7 @@ from ..services.logger import logger
 
 def setup_commands(bot):
     """コマンドをbotに登録する"""
-    
+
     @bot.tree.context_menu(name="🤔 thinking")
     async def thinking(interaction: discord.Interaction, message: discord.Message):
         try:
@@ -25,14 +25,14 @@ def setup_commands(bot):
         except Exception as e:
             await interaction.response.send_message("エラーが発生しました", ephemeral=True)
             logger.error(f"thinking コマンドエラー: {e}")
-    
+
     @bot.tree.command(name="dice", description="ダイスを振る（例: 1d20, 2d6+3）")
     @app_commands.describe(notation="ダイス表記（例: 1d20, 2d6+3）")
     async def dice(interaction: discord.Interaction, notation: str):
         m = re.fullmatch(r"(\d+)[dD](\d+)([+-]\d+)?", notation.strip())
         if not m:
             await interaction.response.send_message(
-                "形式が正しくありません。例: `1d20`, `2d6+3`", 
+                "形式が正しくありません。例: `1d20`, `2d6+3`",
                 ephemeral=True
             )
             return
@@ -43,7 +43,7 @@ def setup_commands(bot):
 
         if n < 1 or n > 100 or sides < 1 or sides > 1000 or abs(mod) > 100:
             await interaction.response.send_message(
-                "指定範囲外です（個数:1–100、面数:1–1000、補正:±100）", 
+                "指定範囲外です（個数:1–100、面数:1–1000、補正:±100）",
                 ephemeral=True
             )
             return

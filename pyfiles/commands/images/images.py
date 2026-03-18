@@ -15,7 +15,7 @@ IMAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def setup_commands(bot):
     """コマンドをbotに登録する"""
-    
+
     @bot.tree.command(name="sonanoka", description="そーなのかー")
     async def sonanoka(interaction: discord.Interaction):
         file_path = os.path.join(IMAGE_DIR, "sonanoka.png")
@@ -25,7 +25,7 @@ def setup_commands(bot):
             return
         await interaction.response.send_message(file=discord.File(file_path))
         logger.info(f"/sonanoka コマンド実行: {interaction.user}")
-    
+
     @bot.tree.command(name="sonanoda", description="そーなのだー")
     async def sonanoda(interaction: discord.Interaction):
         file_path = os.path.join(IMAGE_DIR, "sonanoda.png")
@@ -35,7 +35,7 @@ def setup_commands(bot):
             return
         await interaction.response.send_message(file=discord.File(file_path))
         logger.info(f"/sonanoda コマンド実行: {interaction.user}")
-    
+
     @bot.tree.command(name="flandre", description="ふらんちゃん")
     async def flandre(interaction: discord.Interaction):
         file_path = os.path.join(IMAGE_DIR, "flandre.png")
@@ -45,7 +45,7 @@ def setup_commands(bot):
             return
         await interaction.response.send_message(file=discord.File(file_path))
         logger.info(f"/flandre コマンド実行: {interaction.user}")
-    
+
     @bot.tree.command(name="stamp1_flan", description="スタンプ画像を表示（例: p0）")
     @app_commands.describe(name="スタンプ名（例: p0 ～ p52）")
     async def stamp1(interaction: discord.Interaction, name: str):
