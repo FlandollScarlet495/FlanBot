@@ -13,13 +13,15 @@ def setup_commands(bot):
     @bot.tree.command(name="join", description="VC参加")
     async def join(interaction: discord.Interaction):
 
-        await interaction.response.defer()
+        # deferをephemeral=Trueで実行すると、
+        # 後続のfollowupもすべて非公開メッセージになる
+        await interaction.response.defer(ephemeral=True)
 
         gid = interaction.guild.id
         allow_data = vc_allow_storage.load(gid)
 
         if not can_use_vc(interaction, allow_data):
-            await interaction.followup.send("権限がありません", ephemeral=True)
+            await interaction.followup.send("権限がありません") # ここは ephemeral=True を書かなくても引き継がれるよ
             return
 
         if not interaction.user.voice:
@@ -34,7 +36,7 @@ def setup_commands(bot):
         else:
             await channel.connect()
 
-        # watchdogは1つだけ
+        # --- watchdogの設定 ---
         if gid in bot.watchdog_tasks:
             bot.watchdog_tasks[gid].cancel()
 
@@ -43,20 +45,29 @@ def setup_commands(bot):
         )
 
         await interaction.followup.send(f"「{channel}」に参加しました")
+        logger.info(f"/join: {interaction.user} joined VC")
 
     @bot.tree.command(name="leave", description="VC退出")
     async def leave(interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
         gid = interaction.guild.id
         allow_data = vc_allow_storage.load(gid)
 
         if not can_use_vc(interaction, allow_data):
-            await interaction.response.send_message("権限がありません", ephemeral=True)
+            # defer()後はresponse.send_message()は使えないため、
+            # 追加メッセージはfollowup.send()で送る
+            await interaction.followup.send("権限がありません")
             return
 
         vc = interaction.guild.voice_client
         if not vc:
-            await interaction.response.send_message("VCに参加していません")
+            # defer()後はresponse.send_message()は使えないため、
+            # 追加メッセージはfollowup.send()で送る
+            await interaction.followup.send("VCに参加していません")
             return
+
+        channel = interaction.user.voice.channel
 
         await bot.tts_settings_storage.set_enabled(gid, False)
 
@@ -73,25 +84,29 @@ def setup_commands(bot):
             bot.watchdog_tasks[gid].cancel()
             del bot.watchdog_tasks[gid]
 
-        await interaction.response.send_message("VCから退出しました")
+        # defer()後はresponse.send_message()は使えないため、
+        # 追加メッセージはfollowup.send()で送る
+        await interaction.followup.send(f"「{channel}」から退出しました")
         logger.info(f"/leave: {interaction.user} left VC")
 
     @bot.tree.command(name="skip", description="TTS再生をスキップ")
     async def skip(interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
         gid = interaction.guild.id
         allow_data = vc_allow_storage.load(gid)
 
         if not can_use_vc(interaction, allow_data):
-            await interaction.response.send_message("権限がありません", ephemeral=True)
+            await interaction.followup.send("権限がありません")
             return
 
         vc = interaction.guild.voice_client
         if not vc or not vc.is_connected():
-            await interaction.response.send_message("VCに参加していません", ephemeral=True)
+            await interaction.followup.send("VCに参加していません")
             return
 
         if not vc.is_playing():
-            await interaction.response.send_message("再生中ではありません", ephemeral=True)
+            await interaction.followup.send("再生中ではありません")
             return
 
         vc.stop()
@@ -104,21 +119,23 @@ def setup_commands(bot):
                 except asyncio.QueueEmpty:
                     break
 
-        await interaction.response.send_message("TTS再生をスキップしました")
+        await interaction.followup.send("TTS再生をスキップしました")
         logger.info(f"/skip: {interaction.user} skipped TTS in guild {gid}")
 
     @bot.tree.command(name="tts_on", description="TTS読み込みを有効化")
     async def tts_on(interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
         gid = interaction.guild.id
         allow_data = vc_allow_storage.load(gid)
 
         if not can_use_vc(interaction, allow_data):
-            await interaction.response.send_message("権限がありません", ephemeral=True)
+            await interaction.followup.send("権限がありません")
             return
 
         vc = interaction.guild.voice_client
         if not vc or not vc.is_connected():
-            await interaction.response.send_message("VCに参加していません", ephemeral=True)
+            await interaction.followup.send("VCに参加していません")
             return
 
         await bot.tts_settings_storage.set_enabled(gid, True)
@@ -131,21 +148,23 @@ def setup_commands(bot):
                 tts_worker(bot, gid)
             )
 
-        await interaction.response.send_message("TTS読み込みを有効化しました")
+        await interaction.followup.send("TTS読み込みを有効化しました")
         logger.info(f"/tts_on: {interaction.user} enabled TTS in guild {gid}")
 
     @bot.tree.command(name="tts_off", description="TTS読み込みを無効化")
     async def tts_off(interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
         gid = interaction.guild.id
         allow_data = vc_allow_storage.load(gid)
 
         if not can_use_vc(interaction, allow_data):
-            await interaction.response.send_message("権限がありません", ephemeral=True)
+            await interaction.followup.send("権限がありません")
             return
 
         vc = interaction.guild.voice_client
         if not vc or not vc.is_connected():
-            await interaction.response.send_message("VCに参加していません", ephemeral=True)
+            await interaction.followup.send("VCに参加していません")
             return
 
         await bot.tts_settings_storage.set_enabled(gid, False)
@@ -156,7 +175,7 @@ def setup_commands(bot):
                 del bot.tts_queues[gid]
             del bot.tts_tasks[gid]
 
-        await interaction.response.send_message("TTS読み込みを無効化しました")
+        await interaction.followup.send("TTS読み込みを無効化しました")
         logger.info(f"/tts_off: {interaction.user} disabled TTS in guild {gid}")
 
     @bot.event

@@ -12,7 +12,7 @@ class TTSDictStorage(SQLiteBase):
             return False
         if not reading or len(reading) > self.MAX_READING_LEN:
             return False
-            
+
         try:
             with self.connect() as conn:
                 conn.execute(

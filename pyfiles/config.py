@@ -18,6 +18,7 @@ VOICE_CHANNEL_ID = int(os.getenv("VOICE_CHANNEL_ID") or 0)
 RCON_HOST = str(os.getenv("RCON_HOST"))
 RCON_PORT = int(os.getenv("RCON_PORT") or 25575)
 RCON_PASSWORD = str(os.getenv("RCON_PASSWORD"))
+VOICE_ENGINE_PATH = str(os.getenv("VOICE_ENGINE_PATH") or "")
 
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN が未設定です")
@@ -35,6 +36,8 @@ if not RCON_PORT:
     raise RuntimeError("RCON_PORT が未設定です")
 if not RCON_PASSWORD:
     raise RuntimeError("RCON_PASSWORD が未設定です")
+if not VOICE_ENGINE_PATH:
+    raise RuntimeError("VOICE_ENGINE_PATH が未設定です")
 
 # データベースパス（絶対パスを使用してセキュリティを強化）
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

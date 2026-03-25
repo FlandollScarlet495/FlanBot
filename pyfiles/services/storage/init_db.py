@@ -46,7 +46,7 @@ class DBInitializer:
                         PRIMARY KEY (guild_id, user_id)
                     );
                 """)
-                
+
                 await db.execute("""
                     CREATE TABLE IF NOT EXISTS tts_voice_profiles (
                         guild_id INTEGER NOT NULL,
@@ -64,7 +64,7 @@ class DBInitializer:
         except Exception:
             logger.exception("DB初期化エラー")
             raise
-    
+
     async def set_user_voice(self, guild_id, user_id,
                             engine, speaker_id,
                             speed=1.0, pitch=0.0):
