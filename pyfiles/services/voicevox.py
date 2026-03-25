@@ -101,3 +101,18 @@ class VoicevoxEngine:
                 data = await res.read()
 
         return io.BytesIO(data)
+
+    def get_id(self, name, style=None):
+        if not name:
+            return None
+
+        styles = self.voice_dict.get(name)
+        if not styles:
+            return None
+
+        if style:
+            speaker_id = styles.get(style)
+            if speaker_id is not None:
+                return speaker_id
+
+        return next(iter(styles.values()))

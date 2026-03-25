@@ -13,8 +13,8 @@ def setup_commands(bot):
     @bot.tree.command(name="join", description="VC参加")
     async def join(interaction: discord.Interaction):
 
-        # 最初から ephemeral=True で defer するのがコツ！
-        # これで、その後の followup.send も ephemeral にできるわ。
+        # deferをephemeral=Trueで実行すると、
+        # 後続のfollowupもすべて非公開メッセージになる
         await interaction.response.defer(ephemeral=True)
 
         gid = interaction.guild.id
@@ -55,13 +55,15 @@ def setup_commands(bot):
         allow_data = vc_allow_storage.load(gid)
 
         if not can_use_vc(interaction, allow_data):
-            # 修正: interaction.response.send_message -> interaction.followup.send
+            # defer()後はresponse.send_message()は使えないため、
+            # 追加メッセージはfollowup.send()で送る
             await interaction.followup.send("権限がありません")
             return
 
         vc = interaction.guild.voice_client
         if not vc:
-            # 修正: interaction.response.send_message -> interaction.followup.send
+            # defer()後はresponse.send_message()は使えないため、
+            # 追加メッセージはfollowup.send()で送る
             await interaction.followup.send("VCに参加していません")
             return
 
@@ -82,7 +84,8 @@ def setup_commands(bot):
             bot.watchdog_tasks[gid].cancel()
             del bot.watchdog_tasks[gid]
 
-        # 修正: interaction.response.send_message -> interaction.followup.send
+        # defer()後はresponse.send_message()は使えないため、
+        # 追加メッセージはfollowup.send()で送る
         await interaction.followup.send(f"「{channel}」から退出しました")
         logger.info(f"/leave: {interaction.user} left VC")
 
