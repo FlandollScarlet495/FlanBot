@@ -29,20 +29,12 @@ def setup_commands(bot):
     # --- 内部処理用関数 ---
     async def _process_set_voice(interaction, target_id, engine, name, style, speed, pitch):
         gid = interaction.guild.id
-        voice_engine, voice_speaker_id, voice_speed, voice_pitch = await bot.db_initializer.get_user_voice(gid, target_id)
-        # print("取得値:", voice_engine, voice_speaker_id, voice_speed, voice_pitch)
+        e_v, s_v, sp_v, p_v = await bot.db_initializer.get_user_voice(gid, target_id)
 
-        if engine:
-            current_engine = engine.lower()
-            if current_engine == "openjtalk":
-                current_speaker = 1
-            else:
-                current_speaker = None
-        else:
-            current_engine = voice_engine or "openjtalk"
-            current_speaker = voice_speaker_id
-        current_speed = (speed / 100) if speed is not None else (voice_speed or 1.0)
-        current_pitch = ((pitch - 100) / 100) if pitch is not None else (voice_pitch or 0.0)
+        current_engine = (engine or e_v or "openjtalk").lower()
+        current_speaker = s_v
+        current_speed = (speed / 100) if speed is not None else (sp_v or 1.0)
+        current_pitch = ((pitch - 100) / 100) if pitch is not None else (p_v or 0.0)
 
         if engine and engine.lower() not in ["openjtalk", "voicevox"]:
             await interaction.response.send_message("engineは OpenJTalk / Voicevox を選んでね！", ephemeral=True)
@@ -52,17 +44,11 @@ def setup_commands(bot):
             if current_engine != "voicevox":
                 await interaction.response.send_message("Voicevoxを使用する場合 engine=Voicevox を指定してね！", ephemeral=True)
                 return False
-
             speaker_id = bot.voicevox.get_id(name, style or "ノーマル")
             if speaker_id is None:
                 await interaction.response.send_message("指定された声が見つかりません", ephemeral=True)
                 return False
-
             current_speaker = speaker_id
-
-        elif current_engine == "voicevox" and current_speaker is None:
-            await interaction.response.send_message("Voicevoxではspeaker指定が必要です！", ephemeral=True)
-            return False
 
         if (speed is not None and not (50 <= speed <= 200)) or (pitch is not None and not (50 <= pitch <= 200)):
             await interaction.response.send_message("速度とピッチは50〜200の間で設定してね！", ephemeral=True)
@@ -81,7 +67,7 @@ def setup_commands(bot):
 
         # _process_set_voice 内でメッセージを送信した場合は、ここで再度送らないようにする
         if await _process_set_voice(interaction, interaction.user.id, engine, name, style, speed, pitch):
-            await interaction.response.send_message("音声設定を更新しました", ephemeral=True) # ephemeral=True にして、設定変更の確認メッセージを実行ユーザーのみに表示するようにする
+            await interaction.response.send_message("音声設定を更新しました")
 
     @app_commands.command(name="setmembervoice", description="メンバーの音声設定を変更")
     @app_commands.describe(member="対象メンバー", engine="OpenJTalk / Voicevox", name="Voicevoxキャラ名", style="Voicevoxスタイル", speed="速度(50〜200)", pitch="ピッチ(50〜200)")
@@ -92,7 +78,7 @@ def setup_commands(bot):
             return await interaction.response.send_message("サーバー内で実行してください", ephemeral=True)
 
         if await _process_set_voice(interaction, member.id, engine, name, style, speed, pitch):
-            await interaction.response.send_message(f"{member.display_name} の音声設定を更新しました", ephemeral=True) # ephemeral=True にして、設定変更の確認メッセージを実行ユーザーのみに表示するようにする
+            await interaction.response.send_message(f"{member.display_name} の音声設定を更新しました")
 
     @app_commands.command(name="voicelist", description="利用可能話者一覧を表示")
     async def voice_list(interaction: discord.Interaction):
@@ -105,8 +91,4 @@ def setup_commands(bot):
             style_list = ", ".join(styles.keys())
             text += f"**{name}**: {style_list}\n"
 
-        await interaction.response.send_message(f"### 利用可能話者一覧\n{text[:1900]}", ephemeral=True) # ephemeral=True にして、設定変更の確認メッセージを実行ユーザーのみに表示するようにする
-
-    bot.tree.add_command(setvoice)
-    bot.tree.add_command(setmembervoice)
-    bot.tree.add_command(voice_list)
+        await interaction.response.send_message(f"### 利用可能話者一覧\n{text[:1900]}")
