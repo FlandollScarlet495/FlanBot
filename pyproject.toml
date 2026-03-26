@@ -1,0 +1,20 @@
+[project]
+name = "flanbot"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "davey>=0.1.4",
+    "discord-py>=2.4.0",
+    "mcrcon>=0.7.0",
+    "mcstatus>=13.0.0",
+    "mypy>=1.0.0",
+    "numpy>=1.21.0",
+    "pynacl>=1.6.2",
+    "pyopenjtalk>=0.3.0",
+    "pytest>=7.0.0",
+    "python-dotenv>=1.0.0",
+    "soundfile>=0.12.0",
+]
